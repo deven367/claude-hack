@@ -2,8 +2,8 @@
 
 import streamlit as st
 
+import ai
 import db
-import llm
 
 db.init_db()
 
@@ -143,15 +143,15 @@ def page_share_story():
     )
 
     # --- Step 2: AI-assisted title & tag generation ---
-    ollama_ok = llm.is_available()
+    ollama_ok = ai.is_available()
 
     if ollama_ok and content.strip():
         st.subheader("2. Generate title & tags with AI")
         st.caption("Let the local LLM (qwen3.5:2b) suggest a title and tags based on your story.")
         if st.button("Suggest Title & Tags", type="secondary"):
             with st.spinner("Thinking..."):
-                suggested_title = llm.generate_title(content)
-                suggested_tags = llm.generate_tags(content, db.get_all_tags())
+                suggested_title = ai.generate_title(content)
+                suggested_tags = ai.generate_tags(content, db.get_all_tags())
             if suggested_title:
                 st.session_state["suggested_title"] = suggested_title
             if suggested_tags:
@@ -428,7 +428,7 @@ elif page == "My Story Timeline":
     page_my_stories()
 
 st.sidebar.divider()
-if llm.is_available():
+if ai.is_available():
     st.sidebar.success("Ollama: qwen3.5:2b ready", icon="🟢")
 else:
     st.sidebar.warning("Ollama: not connected", icon="🔴")

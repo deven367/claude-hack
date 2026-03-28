@@ -5,7 +5,8 @@ description = "A simple interface for people to share their stories, with adapti
 requires-python = ">=3.12"
 dependencies = [
     "streamlit",
-    "ollama",
+    "llm",
+    "llm-ollama",
 ]
 
 [project.scripts]
