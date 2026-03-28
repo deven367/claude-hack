@@ -1,14 +1,15 @@
-.PHONY: setup-backend setup-frontend start-backend start-frontend
+.PHONY: setup-backend setup-frontend setup start-backend start-frontend
 
 setup-backend:
 	cd backend && uv sync
 
 setup-frontend:
-	@echo "Frontend is static HTML — no dependencies to install."
+	cd frontend && npm install
+
+setup: setup-backend setup-frontend
 
 start-backend:
 	cd backend && uv run python server.py
 
 start-frontend:
-	@echo "Frontend is served by Flask at http://localhost:5000"
-	@echo "Run 'make start-backend' to start the server."
+	cd frontend && npm run dev
