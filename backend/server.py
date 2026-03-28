@@ -2,9 +2,9 @@
 
 from flask import Flask, render_template, jsonify, request
 
-from backend.storyteller import db
+from storyteller import db
 
-app = Flask(__name__, template_folder="frontend")
+app = Flask(__name__, template_folder="../frontend")
 db.init_db()
 
 

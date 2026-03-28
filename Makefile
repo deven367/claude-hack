@@ -7,7 +7,7 @@ setup-frontend:
 	@echo "Frontend is static HTML — no dependencies to install."
 
 start-backend:
-	cd backend && uv run python ../server.py
+	cd backend && uv run python server.py
 
 start-frontend:
 	@echo "Frontend is served by Flask at http://localhost:5000"
