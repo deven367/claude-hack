@@ -258,3 +258,52 @@ def get_questionnaire_responses(story_id: int) -> list[dict]:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def save_or_update_response(story_id: int, question: str, answer: str):
+    """Upsert a single questionnaire response (for auto-save)."""
+    conn = get_connection()
+    existing = conn.execute(
+        "SELECT id FROM questionnaire_responses WHERE story_id = ? AND question = ?",
+        (story_id, question),
+    ).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE questionnaire_responses SET answer = ? WHERE id = ?",
+            (answer, existing["id"]),
+        )
+    else:
+        conn.execute(
+            "INSERT INTO questionnaire_responses (story_id, question, answer) VALUES (?, ?, ?)",
+            (story_id, question, answer),
+        )
+    conn.commit()
+    conn.close()
+
+
+def update_person(person_id: int, name: str):
+    """Update a person's name."""
+    conn = get_connection()
+    conn.execute("UPDATE persons SET name = ? WHERE id = ?", (name, person_id))
+    conn.commit()
+    conn.close()
+
+
+def get_or_create_story(person_id: int, title: str) -> int:
+    """Get the first story for a person, or create one."""
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT id FROM stories WHERE person_id = ? ORDER BY id LIMIT 1",
+        (person_id,),
+    ).fetchone()
+    if row:
+        conn.close()
+        return row["id"]
+    cursor = conn.execute(
+        "INSERT INTO stories (person_id, title, content) VALUES (?, ?, ?)",
+        (person_id, title, ""),
+    )
+    story_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return story_id

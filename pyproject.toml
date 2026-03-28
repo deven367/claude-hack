@@ -4,8 +4,10 @@ version = "0.1.0"
 description = "A simple interface for people to share their stories, with adaptive questionnaires and tag-based organization"
 requires-python = ">=3.12"
 dependencies = [
+    "flask",
     "streamlit",
 ]
 
 [project.scripts]
 story-app = "app:main"
+story-journal = "server:app"
