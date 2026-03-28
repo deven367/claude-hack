@@ -26,11 +26,23 @@
 - **Voice input**: Placeholder UI with `st.audio_input`, transcription not yet wired up
 - **Run with**: `streamlit run app.py`
 
+### session 2 — LLM integration (2026-03-28)
+
+- **`llm.py`**: Ollama integration using `qwen3.5:2b` running locally
+  - `generate_title(story)` — produces a short evocative title from story content
+  - `generate_tags(story, available_tags)` — selects 2-5 relevant tags (from presets or new) as JSON
+  - `is_available()` — checks Ollama connectivity and model presence
+- **`app.py` updated**: "Share a Story" page now has a 3-step flow:
+  1. Write story content
+  2. (Optional) Click "Suggest Title & Tags" to get AI-generated suggestions
+  3. Review/edit suggestions and save
+- **Sidebar**: Shows Ollama connection status indicator
+- **Key learning**: Qwen3.5 is a thinking model — must pass `think=False` to `ollama.chat()` to disable the reasoning trace. Without this, the model produces enormous internal monologues (200+ lines for "hi") and takes minutes. With `think=False`, responses are fast (~3s for title + tags).
+
 ### what's next (backlog)
 
 - Wire up voice-to-text (e.g. Whisper) for spoken story input
-- Integrate a local LLM (e.g. Ollama) for story refinement suggestions
-- Auto-tag stories using an LLM instead of manual selection
+- LLM-powered story refinement suggestions (rewrite/improve flow)
 - Story export for social media (YouTube/Instagram format)
 - Richer visualization (timeline charts, tag clouds, story graphs)
 - Add tests once logic grows more complex
