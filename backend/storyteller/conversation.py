@@ -8,7 +8,7 @@ import llm
 
 logger = logging.getLogger(__name__)
 
-MODEL_ID = "claude-sonnet-4-6"
+MODEL_ID = "claude-sonnet-4.6"
 
 # Chapter data mirrored from frontend — questions the AI should cover per chapter.
 CHAPTERS = [
