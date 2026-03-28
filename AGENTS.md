@@ -98,3 +98,43 @@
 - **Added `Makefile`** with 4 targets: `setup-backend`, `setup-frontend`, `start-backend`, `start-frontend`. Frontend targets are placeholders since Flask serves the HTML directly
 - **Moved `server.py` into `backend/`**: import changed from `backend.storyteller` to `storyteller` (relative to its new location), template folder is now `../frontend`
 - **`DB_PATH`** in `storyteller/db.py` resolves via `Path(__file__).resolve().parent.parent.parent / "stories.db"` — three levels up from `storyteller/` to repo root. This didn't need changing since `db.py` didn't move
+
+### session 2 — conversational life book (2026-03-28)
+
+**Goal**: Transform the static questionnaire into a conversational experience. Each of the 11 life chapters is now an LLM-driven conversation instead of a form.
+
+**PRs created** (merge order: #17 → #18 → #19):
+- **PR #17** (`feat/conversation-backend`): Backend conversation infrastructure
+- **PR #18** (`feat/chat-frontend`): ChatScreen UI component
+- **PR #19** (`feat/reader-conversations`): ReaderScreen reads conversation data
+
+**Backend changes**:
+- Added `conversations` table to `db.py` — stores `messages` (JSON transcript), `extracted_answers` (JSON structured data), `status` per story+chapter
+- New `storyteller/conversation.py` — the conversation engine:
+  - Builds per-chapter system prompts with chapter questions as "topics to explore"
+  - Uses `llm-anthropic` plugin with model alias `claude-sonnet-4.6` (note: dot not dash)
+  - `chat()` function sends conversation history + user message, gets AI response
+  - `extract_answers()` runs a second LLM call to extract structured Q&A from transcript
+  - Chapter data (questions) is duplicated from `frontend/src/data/chapters.js` into Python
+- New API endpoints in `server.py`:
+  - `POST /api/chat` — send message, get AI response + extracted answers
+  - `GET /api/conversations/<story_id>` — progress overview for all chapters
+  - `GET /api/conversations/<story_id>/<chapter_index>` — full transcript
+  - `GET /api/chapters` — chapter metadata
+- Added `llm-anthropic` to `pyproject.toml` dependencies
+
+**Frontend changes**:
+- New `ChatScreen.jsx` replaces `JourneyScreen` for guided stories
+  - Chat bubbles (user right, AI left with avatar), typing indicator, auto-scroll
+  - Chapter sidebar (collapsible on mobile) with progress per chapter
+  - Progress bar showing topics covered per chapter
+  - Input area with Enter to send, Shift+Enter for newline
+- Updated `App.jsx`: "Begin Guided Story" and "Continue" now route to ChatScreen
+- CSS: ~400 lines of chat styles matching the warm cream/terracotta aesthetic
+- `ReaderScreen.jsx` updated to load `extracted_answers` from conversations, falling back to old `questionnaire_responses`
+
+**Key learnings**:
+- `llm-anthropic` model aliases use dots: `claude-sonnet-4.6`, NOT dashes: `claude-sonnet-4-6`. The dash version causes `UnknownModelError`.
+- API key setup: `cd backend && .venv/bin/llm keys set anthropic` (one-time, persisted to `~/.config/io.datasette.llm/keys.json`). Also works via `ANTHROPIC_API_KEY` env var.
+- The extraction step (second LLM call per message) adds latency. Could be optimized to run less frequently or async.
+- `package-lock.json` was generated with Node 24 but CI uses Node 20 — lockfile needs to be generated with matching Node version.
