@@ -1,44 +1,92 @@
 # Share Your Story
 
+A warm, conversational app for capturing life stories. Instead of filling out forms, users chat with an AI interviewer who guides them through 11 life chapters — from childhood memories to life reflections — one natural conversation at a time.
+
+## How it works
+
+1. Enter your name and click **Begin Guided Story**
+2. An AI interviewer opens a conversation about your first life chapter
+3. Chat naturally — the AI asks one question at a time, follows up on interesting details
+4. Switch between chapters anytime; conversations are saved automatically
+5. Read your completed story as a book in the **Reader** view
+
+## Stack
+
+- **Frontend**: React 19 + Vite (dev server on `localhost:5173`)
+- **Backend**: Flask REST API + SQLite (on `localhost:5000`)
+- **AI**: Claude Sonnet 4.6 via `llm-anthropic`
+- **Styling**: Custom CSS with DM Serif Display, Crimson Pro, and Kalam fonts
+
 ## Run locally
 
-1. Ensure Python 3.12+ and `uv` are installed.
-2. Install dependencies:
-   - `uv pip install -e .`
-3. Set environment variables (uses dotenv if `.env` is present):
-   - Create a `.env` file in the project root with:
-     - `OPENAI_API_KEY=your_openai_api_key_here`
-4. Start the app:
-   - `streamlit run app.py`
+### Prerequisites
 
-## Speech to Text (GPT-4o mini Transcribe)
+- Python 3.12+ with [`uv`](https://docs.astral.sh/uv/)
+- Node.js 20+
+- An Anthropic API key
 
-- In “Share a Story”, choose “Speak”.
-- Record audio; transcription runs automatically on stop.
-- The transcript pre-fills the story text area as an editable draft.
-- Audio is saved locally under `data/audio/` for retry.
-- Click “Retry transcription” to re-run without re-recording.
-
-Notes:
-- Multilingual input is supported via auto language detection.
-- Transcription returns plain text (no timestamps/diarization).
-
-### Using llm-whisper-api (preferred if installed)
-
-This app can use Simon Willison’s `llm whisper-api` CLI for transcription and will auto-detect it if available.
-
-Install:
+### Setup
 
 ```bash
-pip install llm
-llm install llm-whisper-api
-# Optional: configure key within llm
-llm keys set openai
+make setup
+cd backend && .venv/bin/llm keys set anthropic
+# paste your Anthropic API key when prompted
 ```
 
-Usage in this app:
-- If the `llm` binary is in PATH, the app will run `llm whisper-api <audio>` automatically.
-- If not installed, it falls back to the OpenAI Python SDK.
-- You can force-disable the CLI attempt by setting `USE_LLM_WHISPER_API=0`.
+### Start
 
-Reference: [`llm-whisper-api` README](https://github.com/simonw/llm-whisper-api)
+```bash
+# Terminal 1 — backend
+make start-backend
+
+# Terminal 2 — frontend
+make start-frontend
+```
+
+Open http://localhost:5173
+
+### Alternative: Freeform stories
+
+Click **Write a Blank Story** to write prose directly instead of using the guided conversation.
+
+## Project structure
+
+```
+backend/
+  server.py              # Flask API
+  storyteller/
+    db.py                # SQLite database layer
+    conversation.py      # LLM conversation engine
+    ai.py                # Title/tag generation (Ollama)
+    speech.py            # Audio transcription (Whisper)
+    questionnaire.py     # Adaptive questionnaire logic
+  pyproject.toml         # Python dependencies
+
+frontend/
+  src/
+    App.jsx              # Screen routing
+    components/
+      ChatScreen.jsx     # Conversational interview UI
+      WelcomeScreen.jsx  # Home / library
+      ReaderScreen.jsx   # Book-like story viewer
+      ComposeScreen.jsx  # Freeform writing
+    data/chapters.js     # 11 life chapters + questions
+    utils/
+      api.js             # Fetch wrapper
+      storage.js         # localStorage helpers
+
+stories.db               # SQLite database (auto-created)
+Makefile                 # setup, start-backend, start-frontend, test-backend
+```
+
+## API endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/persons` | Create a person + initial story |
+| POST | `/api/chat` | Send message, get AI response |
+| GET | `/api/chapters` | List all 11 chapters |
+| GET | `/api/conversations/:storyId` | Chapter progress overview |
+| GET | `/api/conversations/:storyId/:chapter` | Full transcript + answers |
+| GET | `/api/stories` | List all stories |
+| GET | `/api/stories/:id` | Get story details |
