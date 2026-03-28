@@ -97,7 +97,6 @@ def page_share_story():
     )
 
     all_persons = db.get_all_persons()
-    person_options = {p["name"]: p["id"] for p in all_persons}
 
     with st.expander("New storyteller? Register here", expanded=not bool(all_persons)):
         with st.form("new_person_form"):
@@ -113,11 +112,12 @@ def page_share_story():
         st.info("Register above to start sharing your story.")
         return
 
-    selected_name = st.selectbox(
+    selected_person = st.selectbox(
         "Who is sharing?",
-        options=list(person_options.keys()),
+        options=all_persons,
+        format_func=lambda p: f"{p['name']} ({p['age_group']})",
     )
-    person_id = person_options[selected_name]
+    person_id = selected_person["id"]
 
     st.divider()
 
