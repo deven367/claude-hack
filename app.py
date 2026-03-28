@@ -105,7 +105,7 @@ def page_share_story():
             new_age_group = st.selectbox("Age group", AGE_GROUPS)
             submitted = st.form_submit_button("Register")
             if submitted and new_name.strip():
-                pid = db.create_person(new_name.strip(), new_age_group)
+                db.create_person(new_name.strip(), new_age_group)
                 st.success(f"Welcome, {new_name}!")
                 st.rerun()
 
