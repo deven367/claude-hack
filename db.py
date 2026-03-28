@@ -1,7 +1,6 @@
 """SQLite database layer for Share Your Story."""
 
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "stories.db"
