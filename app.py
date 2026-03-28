@@ -3,8 +3,31 @@
 import streamlit as st
 
 import db
+from pathlib import Path
+from uuid import uuid4
+from dotenv import load_dotenv, find_dotenv
+import os
+from typing import Optional
+import io
+import shutil
+import mimetypes
+import speech
 
 db.init_db()
+
+# Load environment from a .env file if present (resolve reliably from cwd or repo root)
+_found_env = find_dotenv(usecwd=True)
+if _found_env:
+    load_dotenv(_found_env, override=False)
+else:
+    # Fallback: look for a .env next to this file (repo-root alongside app.py)
+    _local_env = Path(__file__).parent / ".env"
+    if _local_env.exists():
+        load_dotenv(_local_env, override=False)
+
+APP_DIR = Path(__file__).parent
+AUDIO_DIR = APP_DIR / "data" / "audio"
+AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 AGE_GROUPS = [
     "Teenager (13-19)",
@@ -124,12 +147,106 @@ def page_share_story():
     input_mode = st.radio("How would you like to share?", ["Write", "Speak"], horizontal=True)
 
     if input_mode == "Speak":
-        audio = st.audio_input("Record your story")
-        if audio:
-            st.info(
-                "Voice-to-text transcription will be available in a future update. "
-                "For now, please use the Write mode."
+        audio_file = st.audio_input("Record your story")
+
+        # Show existing draft transcript if present
+        existing_transcript: Optional[str] = st.session_state.get("transcript_draft")
+
+        # Helper to save uploaded audio to disk
+        def _save_audio_locally(uploaded_file) -> Optional[Path]:
+            if not uploaded_file:
+                return None
+            # Pick extension from MIME type if possible, default to .wav
+            ext = ".wav"
+            if uploaded_file.type:
+                guessed_ext = mimetypes.guess_extension(uploaded_file.type)
+                if guessed_ext:
+                    ext = guessed_ext
+            filename = f"{uuid4().hex}{ext}"
+            dst_path = AUDIO_DIR / filename
+            # uploaded_file is a BytesIO-like object
+            with dst_path.open("wb") as out_f:
+                out_f.write(uploaded_file.getvalue())
+            return dst_path
+
+        # Automatically transcribe once a new recording is present
+        if audio_file and not st.session_state.get("audio_file_path"):
+            saved_path = _save_audio_locally(audio_file)
+            if saved_path:
+                st.session_state["audio_file_path"] = str(saved_path)
+                with st.spinner("Transcribing your story..."):
+                    try:
+                        text = speech.transcribe_audio_file(saved_path, model="gpt-4o-mini-transcribe")
+                        st.session_state["transcript_draft"] = text
+                        existing_transcript = text
+                        st.success("Transcription complete. You can edit before saving.")
+                    except Exception as e:
+                        st.error(f"Transcription failed: {e}")
+                        st.info("You can retry transcription below without re-recording.")
+
+        # Retry transcription if audio saved
+        audio_path_str = st.session_state.get("audio_file_path")
+        if audio_path_str:
+            col_a, col_b = st.columns([1, 3])
+            with col_a:
+                if st.button("Retry transcription"):
+                    with st.spinner("Retrying transcription..."):
+                        try:
+                            text = speech.transcribe_audio_file(Path(audio_path_str), model="gpt-4o-mini-transcribe")
+                            st.session_state["transcript_draft"] = text
+                            existing_transcript = text
+                            st.success("Transcription complete.")
+                        except Exception as e:
+                            st.error(f"Retry failed: {e}")
+            with col_b:
+                st.caption(f"Saved audio: {audio_path_str}")
+
+        # Show form to finalize and save the story, pre-filling transcript as draft
+        with st.form("story_form_speak", clear_on_submit=True):
+            title = st.text_input("Story title", placeholder="Give your story a title...")
+            content = st.text_area(
+                "Your story (transcribed, you can edit)",
+                height=250,
+                value=existing_transcript or "",
+                placeholder="Your transcript will appear here after recording...",
             )
+
+            all_tags = db.get_all_tags()
+            selected_tags = st.multiselect(
+                "Tags (select or type new ones)",
+                options=all_tags,
+                default=None,
+                help="Choose tags that describe your story's themes",
+            )
+            custom_tags = st.text_input(
+                "Add custom tags (comma-separated)",
+                placeholder="e.g. resilience, music, 1990s",
+            )
+
+            submitted = st.form_submit_button("Save Story", type="primary")
+
+            if submitted:
+                if not title.strip() or not content.strip():
+                    st.error("Please provide both a title and your story.")
+                else:
+                    all_selected = list(selected_tags)
+                    if custom_tags.strip():
+                        all_selected.extend(
+                            t.strip().lower() for t in custom_tags.split(",") if t.strip()
+                        )
+
+                    story_id = db.create_story(person_id, title.strip(), content.strip(), all_selected)
+                    st.success("Your story has been saved!")
+
+                    # Clear session-state draft after saving
+                    st.session_state.pop("transcript_draft", None)
+                    st.session_state.pop("audio_file_path", None)
+
+                    st.session_state["last_story_id"] = story_id
+                    st.session_state["last_story_tags"] = all_selected
+                    st.session_state["show_questionnaire"] = True
+                    st.rerun()
+
         return
 
     with st.form("story_form", clear_on_submit=True):

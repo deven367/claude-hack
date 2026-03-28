@@ -5,7 +5,13 @@ description = "A simple interface for people to share their stories, with adapti
 requires-python = ">=3.12"
 dependencies = [
     "streamlit",
+    "openai>=1.55.0",
+    "python-dotenv>=1.0.1",
 ]
 
-[project.scripts]
-story-app = "app:main"
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["app", "db", "speech"]
