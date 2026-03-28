@@ -1,5 +1,6 @@
 """SQLite database layer for Share Your Story, powered by sqlite-utils."""
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -86,6 +87,22 @@ def init_db():
             "question": str,
             "answer": str,
             "created_at": str,
+        },
+        pk="id",
+        foreign_keys=[("story_id", "stories")],
+        if_not_exists=True,
+    )
+
+    db["conversations"].create(
+        {
+            "id": int,
+            "story_id": int,
+            "chapter_index": int,
+            "messages": str,       # JSON array of {role, content, timestamp}
+            "extracted_answers": str,  # JSON object {question_id: answer_text}
+            "status": str,         # "in_progress" or "completed"
+            "created_at": str,
+            "updated_at": str,
         },
         pk="id",
         foreign_keys=[("story_id", "stories")],
@@ -290,3 +307,61 @@ def save_or_update_response(story_id: int, question: str, answer: str):
             "story_id": story_id, "question": question,
             "answer": answer, "created_at": _now(),
         })
+
+
+# --- Conversation operations ---
+
+def get_conversation(story_id: int, chapter_index: int) -> dict | None:
+    db = get_db()
+    rows = list(db["conversations"].rows_where(
+        "story_id = ? AND chapter_index = ?", [story_id, chapter_index]
+    ))
+    if not rows:
+        return None
+    row = rows[0]
+    row["messages"] = json.loads(row["messages"]) if row["messages"] else []
+    row["extracted_answers"] = json.loads(row["extracted_answers"]) if row["extracted_answers"] else {}
+    return row
+
+
+def get_all_conversations(story_id: int) -> list[dict]:
+    db = get_db()
+    rows = list(db["conversations"].rows_where(
+        "story_id = ?", [story_id], order_by="chapter_index"
+    ))
+    for row in rows:
+        row["messages"] = json.loads(row["messages"]) if row["messages"] else []
+        row["extracted_answers"] = json.loads(row["extracted_answers"]) if row["extracted_answers"] else {}
+    return rows
+
+
+def save_conversation(
+    story_id: int,
+    chapter_index: int,
+    messages: list[dict],
+    extracted_answers: dict,
+    status: str = "in_progress",
+) -> int:
+    db = get_db()
+    now = _now()
+    existing = list(db["conversations"].rows_where(
+        "story_id = ? AND chapter_index = ?", [story_id, chapter_index]
+    ))
+    if existing:
+        db["conversations"].update(existing[0]["id"], {
+            "messages": json.dumps(messages),
+            "extracted_answers": json.dumps(extracted_answers),
+            "status": status,
+            "updated_at": now,
+        })
+        return existing[0]["id"]
+    else:
+        return db["conversations"].insert({
+            "story_id": story_id,
+            "chapter_index": chapter_index,
+            "messages": json.dumps(messages),
+            "extracted_answers": json.dumps(extracted_answers),
+            "status": status,
+            "created_at": now,
+            "updated_at": now,
+        }).last_pk

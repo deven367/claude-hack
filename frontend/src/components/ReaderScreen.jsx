@@ -146,9 +146,32 @@ export default function ReaderScreen({ personId, storyId, personName, isFreeform
         coverPage = { type: 'cover', personName, customTitle: title }
         contentBlocks = freeformToBlocks(story.content || '')
       } else {
-        const responses = await api('GET', `/api/responses/${storyId}`)
-        const answers = {}
-        responses.forEach(r => { answers[r.question] = r.answer })
+        // Try conversation data first, fall back to old questionnaire responses
+        const conversations = await api('GET', `/api/conversations/${storyId}`)
+        let answers = {}
+
+        if (conversations && conversations.length > 0) {
+          // Build answers from conversation extracted_answers
+          // We need full conversation data for each chapter
+          for (const conv of conversations) {
+            const fullConv = await api('GET', `/api/conversations/${storyId}/${conv.chapter_index}`)
+            if (fullConv.extracted_answers) {
+              const chapterId = CHAPTERS[conv.chapter_index]?.id
+              if (chapterId) {
+                Object.entries(fullConv.extracted_answers).forEach(([qId, answer]) => {
+                  answers[`${chapterId}_${qId}`] = answer
+                })
+              }
+            }
+          }
+        }
+
+        // Fall back to old questionnaire responses if no conversation data
+        if (Object.keys(answers).length === 0) {
+          const responses = await api('GET', `/api/responses/${storyId}`)
+          responses.forEach(r => { answers[r.question] = r.answer })
+        }
+
         coverPage = { type: 'cover', personName }
         contentBlocks = guidedToBlocks(answers)
       }
