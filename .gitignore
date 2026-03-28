@@ -1,10 +1,11 @@
 .env
 stories.db
-data/
+#data/
 __pycache__/
 *.pyc
 .pytest_cache/
 node_modules/
+.vite/
 
 # App data
 stories.db
