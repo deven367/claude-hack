@@ -120,6 +120,11 @@ def get_person(person_id: int) -> dict | None:
         return None
 
 
+def update_person(person_id: int, name: str):
+    db = get_db()
+    db["persons"].update(person_id, {"name": name})
+
+
 # --- Story operations ---
 
 def create_story(person_id: int, title: str, content: str, tag_names: list[str]) -> int:
@@ -195,6 +200,19 @@ def update_story(story_id: int, title: str, content: str):
     db["stories"].update(story_id, {"title": title, "content": content, "updated_at": _now()})
 
 
+def get_or_create_story(person_id: int, title: str) -> int:
+    """Get the first story for a person, or create one."""
+    db = get_db()
+    rows = list(db["stories"].rows_where("person_id = ?", [person_id], order_by="id", limit=1))
+    if rows:
+        return rows[0]["id"]
+    now = _now()
+    return db["stories"].insert({
+        "person_id": person_id, "title": title, "content": "",
+        "created_at": now, "updated_at": now,
+    }).last_pk
+
+
 # --- Tag operations ---
 
 def _get_tags_for_story(db: sqlite_utils.Database, story_id: int) -> list[str]:
@@ -257,3 +275,18 @@ def get_questionnaire_responses(story_id: int) -> list[dict]:
             "story_id = ?", [story_id], order_by="id"
         )
     )
+
+
+def save_or_update_response(story_id: int, question: str, answer: str):
+    """Upsert a single questionnaire response."""
+    db = get_db()
+    existing = list(db["questionnaire_responses"].rows_where(
+        "story_id = ? AND question = ?", [story_id, question]
+    ))
+    if existing:
+        db["questionnaire_responses"].update(existing[0]["id"], {"answer": answer})
+    else:
+        db["questionnaire_responses"].insert({
+            "story_id": story_id, "question": question,
+            "answer": answer, "created_at": _now(),
+        })
