@@ -417,6 +417,19 @@ wheels = [
 ]
 
 [[package]]
+name = "llm-whisper-api"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "llm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/24/1c/7ba47206ca4e718ef81c40ef96c67dc7578db3a75893e56505859426e64a/llm_whisper_api-0.1.1.tar.gz", hash = "sha256:97c4f915b6b7fd737a5dfe1da2d4167d2f505bc7ac384f650568595bf0754245", size = 7080, upload-time = "2024-10-27T15:52:21.605Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bd/50/0135f23d7c839ba67b6356865994136380ee894392aa6fa0d6b486422ff2/llm_whisper_api-0.1.1-py3-none-any.whl", hash = "sha256:3b7bae8ec9257e9d4a51e1614b3b31ab2151dd93f7aebb9fbf5dcec28defa437", size = 7219, upload-time = "2024-10-27T15:52:20.485Z" },
+]
+
+[[package]]
 name = "markupsafe"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -912,6 +925,15 @@ wheels = [
 ]
 
 [[package]]
+name = "python-dotenv"
+version = "1.2.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/82/ed/0301aeeac3e5353ef3d94b6ec08bbcabd04a72018415dcb29e588514bba8/python_dotenv-1.2.2.tar.gz", hash = "sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3", size = 50135, upload-time = "2026-03-01T16:00:26.196Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0b/d7/1959b9648791274998a9c3526f6d0ec8fd2233e4d4acce81bbae76b44b2a/python_dotenv-1.2.2-py3-none-any.whl", hash = "sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a", size = 22101, upload-time = "2026-03-01T16:00:25.09Z" },
+]
+
+[[package]]
 name = "python-ulid"
 version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1097,19 +1119,30 @@ wheels = [
 [[package]]
 name = "share-your-story"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "llm" },
     { name = "llm-ollama" },
+    { name = "llm-whisper-api" },
     { name = "streamlit" },
+]
+
+[package.optional-dependencies]
+openai = [
+    { name = "openai" },
+    { name = "python-dotenv" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "llm" },
     { name = "llm-ollama" },
+    { name = "llm-whisper-api" },
+    { name = "openai", marker = "extra == 'openai'", specifier = ">=1.55.0" },
+    { name = "python-dotenv", marker = "extra == 'openai'", specifier = ">=1.0.1" },
     { name = "streamlit" },
 ]
+provides-extras = ["openai"]
 
 [[package]]
 name = "six"
