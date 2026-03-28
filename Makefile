@@ -12,7 +12,7 @@ start-backend:
 	cd backend && uv run python server.py
 
 start-frontend:
-  cd frontend && npm run dev
+	cd frontend && npm run dev
 
 test-backend:
 	cd backend && uv run pytest tests/ -v
