@@ -1,3 +1,10 @@
+.env
+stories.db
+data/
+__pycache__/
+*.pyc
+.pytest_cache/
+
 # App data
 stories.db
 

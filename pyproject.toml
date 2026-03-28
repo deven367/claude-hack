@@ -7,7 +7,18 @@ dependencies = [
     "streamlit",
     "llm",
     "llm-ollama",
+    "llm-whisper-api",
 ]
 
-[project.scripts]
-story-app = "app:main"
+[project.optional-dependencies]
+openai = [
+    "openai>=1.55.0",
+    "python-dotenv>=1.0.1",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["app", "db", "speech"]
