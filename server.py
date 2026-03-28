@@ -2,7 +2,7 @@
 
 from flask import Flask, render_template, jsonify, request
 
-import db
+from backend.storyteller import db
 
 app = Flask(__name__, template_folder="frontend")
 db.init_db()
