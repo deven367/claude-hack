@@ -46,3 +46,5 @@
 7. Do not merge code directly into the `main` branch, always create PRs and wait for human approval
 8. After every session, update `AGENTS.md` with what you've learnt
 9. Ask clarifying questions if deliverables seem to ambiguous.
+10. Do not reimplement functionality that already exists. Use the existing code as a reference.
+11. Install external dependencies instead of re-implementing them. Use `sqlite-utils` for database operations instead of writing raw SQL queries.
