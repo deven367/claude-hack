@@ -86,3 +86,14 @@
 - Deleted `app.py` — Streamlit frontend is being replaced
 - Moved `pyproject.toml` into `backend/` so frontend and backend each own their own dependency config
 - `stories.db` lives at repo root, shared between frontend and backend
+
+---
+
+## Billy
+
+### session 1 — conversational UI & dev tooling (2026-03-28)
+
+- **Repo layout**: `backend/` has its own `pyproject.toml` managed by `uv`; `frontend/` is a single static `index.html` served by Flask's `template_folder`; `server.py` lives at repo root
+- **Flask serves everything**: `server.py` uses `Flask(__name__, template_folder="frontend")` so the frontend has no separate dev server — it's all `localhost:5000`
+- **Added `Makefile`** with 4 targets: `setup-backend`, `setup-frontend`, `start-backend`, `start-frontend`. Frontend targets are placeholders since Flask serves the HTML directly
+- **Backend startup**: must run from `backend/` dir via `uv run python ../server.py` so the venv and dependencies resolve correctly
