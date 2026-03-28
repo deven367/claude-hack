@@ -70,5 +70,25 @@ def get_all_stories():
     return jsonify(stories)
 
 
+@app.route("/api/stories/<int:story_id>", methods=["GET"])
+def get_story(story_id):
+    story = db.get_story(story_id)
+    if not story:
+        return jsonify({"error": "Story not found"}), 404
+    story["responses"] = db.get_questionnaire_responses(story_id)
+    return jsonify(story)
+
+
+@app.route("/api/stories/<int:story_id>", methods=["PUT"])
+def update_story(story_id):
+    data = request.json
+    title = data.get("title", "").strip()
+    content = data.get("content", "")
+    if not title:
+        return jsonify({"error": "Title is required"}), 400
+    db.update_story(story_id, title, content)
+    return jsonify({"status": "ok"})
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

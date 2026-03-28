@@ -632,6 +632,1085 @@
       line-height: 1.7;
     }
 
+    /* ===== LIBRARY ===== */
+    .library-section {
+      margin-top: 3rem;
+      width: 100%;
+      max-width: 680px;
+      opacity: 0;
+      animation: fade-up 0.8s ease-out 1s forwards;
+    }
+
+    .library-heading {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      color: var(--brown);
+      margin-bottom: 0.3rem;
+    }
+
+    .library-subheading {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.95rem;
+      color: var(--brown-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    /* Shelf sections */
+    .shelf-section {
+      margin-bottom: 2rem;
+      position: relative;
+    }
+
+    .shelf-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+      padding-left: 0.25rem;
+    }
+
+    .shelf-nameplate {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: linear-gradient(180deg, #C9A96E 0%, #A68B4B 100%);
+      border: 1px solid #8B7032;
+      border-radius: 3px;
+      padding: 0.25rem 0.9rem;
+      box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    .shelf-nameplate-text {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      color: #2C1810;
+      letter-spacing: 0.03em;
+    }
+
+    .shelf-nameplate-input {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      color: #2C1810;
+      background: rgba(255,255,255,0.3);
+      border: 1px solid rgba(139, 112, 50, 0.4);
+      border-radius: 2px;
+      padding: 0 0.4rem;
+      outline: none;
+      width: 140px;
+    }
+
+    .shelf-rename-btn {
+      background: none;
+      border: none;
+      color: rgba(44, 24, 16, 0.35);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0.15rem;
+      transition: color 0.2s;
+      line-height: 1;
+    }
+
+    .shelf-rename-btn:hover {
+      color: #2C1810;
+    }
+
+    .shelf-delete-btn {
+      background: none;
+      border: none;
+      color: rgba(44, 24, 16, 0.2);
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0.15rem;
+      transition: color 0.2s;
+      margin-left: auto;
+      line-height: 1;
+    }
+
+    .shelf-delete-btn:hover { color: var(--terracotta); }
+
+    .library-shelf {
+      display: flex;
+      justify-content: flex-start;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      padding: 1rem 0.75rem 0;
+      min-height: 60px;
+      position: relative;
+    }
+
+    .shelf-empty-msg {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-style: italic;
+      font-size: 0.9rem;
+      color: var(--brown-muted);
+      padding: 1.5rem 0 0.5rem;
+      width: 100%;
+      text-align: center;
+    }
+
+    .library-shelf-wood {
+      width: 100%;
+      height: 16px;
+      background:
+        linear-gradient(90deg,
+          transparent 0%, rgba(255,255,255,0.06) 3%, transparent 5%,
+          transparent 25%, rgba(255,255,255,0.04) 27%, transparent 29%,
+          transparent 55%, rgba(255,255,255,0.05) 57%, transparent 59%,
+          transparent 85%, rgba(255,255,255,0.04) 87%, transparent 89%
+        ),
+        linear-gradient(180deg, #A88E60 0%, #8B7042 35%, #6B5535 100%);
+      border-radius: 2px;
+      box-shadow:
+        0 5px 10px rgba(44, 24, 16, 0.18),
+        0 1px 0 rgba(44, 24, 16, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      position: relative;
+    }
+
+    .library-shelf-wood::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: linear-gradient(180deg, rgba(44, 24, 16, 0.1), transparent);
+    }
+
+    /* Shelf selector pills in create form */
+    .shelf-selector {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      margin-bottom: 0.25rem;
+    }
+
+    .shelf-selector-label {
+      font-family: var(--font-hand);
+      font-size: 0.9rem;
+      color: var(--brown-muted);
+      margin-right: 0.25rem;
+    }
+
+    .shelf-pill {
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      padding: 0.25rem 0.7rem;
+      border-radius: var(--radius-xl);
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      color: var(--brown-light);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .shelf-pill:hover {
+      border-color: var(--gold);
+    }
+
+    .shelf-pill.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: white;
+    }
+
+    .shelf-pill-add {
+      border-style: dashed;
+      color: var(--brown-muted);
+    }
+
+    .shelf-pill-add:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    /* Add shelf button */
+    .add-shelf-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.7rem;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-md);
+      background: transparent;
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      color: var(--brown-muted);
+      cursor: pointer;
+      transition: all 0.25s;
+      margin-top: 0.5rem;
+    }
+
+    .add-shelf-btn:hover {
+      border-color: var(--gold);
+      color: var(--brown-light);
+      background: rgba(212, 165, 116, 0.04);
+    }
+
+    .add-shelf-inline {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      width: 100%;
+      margin-top: 0.5rem;
+    }
+
+    .add-shelf-input {
+      flex: 1;
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      padding: 0.5rem 0.75rem;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--white);
+      color: var(--brown);
+      outline: none;
+    }
+
+    .add-shelf-input:focus {
+      border-color: var(--gold);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .add-shelf-confirm {
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--gold);
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .add-shelf-confirm:hover { filter: brightness(1.08); }
+
+    .library-book-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .library-book {
+      width: 120px;
+      height: 170px;
+      border-radius: 3px 8px 8px 3px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1rem 0.85rem 1rem 1.2rem;
+      box-shadow:
+        2px 4px 12px rgba(0, 0, 0, 0.2),
+        inset -3px 0 8px rgba(0, 0, 0, 0.15),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+
+    .library-book::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 14px;
+      background: linear-gradient(90deg,
+        rgba(0,0,0,0.3) 0%,
+        rgba(0,0,0,0.08) 40%,
+        rgba(255,255,255,0.06) 60%,
+        rgba(0,0,0,0.05) 100%
+      );
+      border-radius: 3px 0 0 3px;
+    }
+
+    .library-book::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      right: -4px;
+      bottom: 3px;
+      width: 6px;
+      background: repeating-linear-gradient(to right,
+        #E8DDD0 0px, #E8DDD0 1px,
+        #FFFCF7 1px, #FFFCF7 1.8px
+      );
+      border-radius: 0 2px 2px 0;
+      box-shadow: 1px 0 3px rgba(0,0,0,0.08);
+    }
+
+    .library-book:hover {
+      transform: translateY(-10px) rotate(-2deg);
+      box-shadow:
+        6px 12px 24px rgba(0, 0, 0, 0.25),
+        inset -3px 0 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .library-book-ornament {
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      opacity: 0.6;
+    }
+
+    .library-book-title {
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      line-height: 1.35;
+      margin: 0.4rem 0;
+    }
+
+    .library-book-divider {
+      width: 24px;
+      height: 1px;
+      opacity: 0.3;
+      margin: 0.15rem 0;
+    }
+
+    .library-book-actions {
+      display: flex;
+      gap: 0.35rem;
+    }
+
+    .library-action-btn {
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .library-action-read {
+      background: var(--terracotta);
+      color: white;
+      border: 1px solid var(--terracotta);
+    }
+
+    .library-action-read:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .library-action-write {
+      background: var(--white);
+      color: var(--brown-light);
+      border: 1px solid var(--border);
+    }
+
+    .library-action-write:hover {
+      border-color: var(--brown-muted);
+      color: var(--brown);
+    }
+
+    /* ===== READER ===== */
+    #reader-screen {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #1E120B;
+      position: relative;
+      overflow: hidden;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    #reader-screen.active {
+      animation: readerFadeIn 0.4s ease-out;
+    }
+
+    @keyframes readerFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    #reader-screen::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140%;
+      height: 140%;
+      background: radial-gradient(ellipse at center,
+        rgba(212, 165, 116, 0.06) 0%,
+        rgba(212, 165, 116, 0.02) 40%,
+        transparent 70%
+      );
+      pointer-events: none;
+    }
+
+    .reader-close {
+      position: absolute;
+      top: 1.25rem;
+      left: 1.25rem;
+      background: rgba(255, 252, 247, 0.08);
+      border: 1px solid rgba(255, 252, 247, 0.12);
+      color: rgba(255, 252, 247, 0.6);
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.25s;
+      z-index: 10;
+    }
+
+    .reader-close:hover {
+      background: rgba(255, 252, 247, 0.16);
+      color: rgba(255, 252, 247, 0.9);
+    }
+
+    .reader-book-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 580px;
+      height: 76vh;
+      perspective: 2200px;
+    }
+
+    .reader-book {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      background: var(--white);
+      border-radius: 2px 8px 8px 2px;
+    }
+
+    .reader-book-spine {
+      position: absolute;
+      top: -3px;
+      left: -14px;
+      bottom: -3px;
+      width: 16px;
+      background: linear-gradient(90deg, #5C4420, #8B6B3D, #7A5C30, #6B4C25);
+      border-radius: 4px 0 0 4px;
+      box-shadow: -3px 0 10px rgba(0, 0, 0, 0.4);
+      z-index: 5;
+    }
+
+    .reader-book-spine::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      left: 3px;
+      right: 3px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .reader-book-edges {
+      position: absolute;
+      top: 4px;
+      right: -5px;
+      bottom: 4px;
+      width: 8px;
+      background: repeating-linear-gradient(to right,
+        #E8DDD0 0px, #E8DDD0 1px,
+        #F5EDE0 1px, #F5EDE0 2.2px
+      );
+      border-radius: 0 2px 2px 0;
+      box-shadow: 2px 0 6px rgba(0,0,0,0.1);
+      z-index: 0;
+    }
+
+    .reader-page {
+      position: absolute;
+      inset: 0;
+      background: #FFFCF7;
+      border-radius: 2px 8px 8px 2px;
+      box-shadow:
+        0 2px 30px rgba(0, 0, 0, 0.15),
+        inset -4px 0 12px rgba(0, 0, 0, 0.03),
+        inset 0 0 60px rgba(253, 246, 236, 0.4);
+      overflow: hidden;
+      padding: 2.5rem 2.5rem 3rem;
+      transform-origin: left center;
+      backface-visibility: hidden;
+      will-change: transform;
+      z-index: 1;
+    }
+
+    .reader-page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px;
+      opacity: 0.018;
+      pointer-events: none;
+      border-radius: inherit;
+    }
+
+    /* Subtle page corner fold */
+    .reader-page::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 0 28px 28px;
+      border-color: transparent transparent #EDE5D8 transparent;
+      border-radius: 0 0 8px 0;
+      opacity: 0.45;
+      transition: all 0.3s;
+      z-index: 2;
+    }
+
+    .reader-page:hover::after {
+      border-width: 0 0 38px 38px;
+      opacity: 0.6;
+    }
+
+    /* page doesn't scroll — content is paginated */
+
+    /* Spine shadow on left of page */
+    .reader-page-gutter {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 30px;
+      background: linear-gradient(90deg, rgba(0,0,0,0.04), transparent);
+      pointer-events: none;
+      z-index: 3;
+      border-radius: 2px 0 0 2px;
+    }
+
+    /* ===== PAGE FLIP ANIMATIONS ===== */
+    .reader-page.flip-out-forward {
+      animation: flipOutFwd 0.7s cubic-bezier(0.455, 0.03, 0.515, 0.955) forwards;
+      z-index: 2;
+    }
+
+    .reader-page.flip-in-forward {
+      animation: flipInFwd 0.7s cubic-bezier(0.455, 0.03, 0.515, 0.955) forwards;
+      z-index: 1;
+    }
+
+    .reader-page.flip-out-backward {
+      animation: flipOutBwd 0.7s cubic-bezier(0.455, 0.03, 0.515, 0.955) forwards;
+      z-index: 2;
+    }
+
+    .reader-page.flip-in-backward {
+      animation: flipInBwd 0.7s cubic-bezier(0.455, 0.03, 0.515, 0.955) forwards;
+      z-index: 1;
+    }
+
+    @keyframes flipOutFwd {
+      0% { transform: rotateY(0deg); box-shadow: 0 2px 30px rgba(0,0,0,0.15); }
+      40% { box-shadow: -20px 0 40px rgba(0,0,0,0.2); }
+      100% { transform: rotateY(-180deg); box-shadow: 0 2px 30px rgba(0,0,0,0.15); }
+    }
+
+    @keyframes flipInFwd {
+      0% { transform: rotateY(180deg); box-shadow: 0 2px 30px rgba(0,0,0,0.15); }
+      60% { box-shadow: 20px 0 40px rgba(0,0,0,0.2); }
+      100% { transform: rotateY(0deg); box-shadow: 0 2px 30px rgba(0,0,0,0.15); }
+    }
+
+    @keyframes flipOutBwd {
+      0% { transform: rotateY(0deg); }
+      100% { transform: rotateY(180deg); }
+    }
+
+    @keyframes flipInBwd {
+      0% { transform: rotateY(-180deg); }
+      100% { transform: rotateY(0deg); }
+    }
+
+    /* ===== READER PAGE CONTENT ===== */
+    .reader-cover-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 1rem 0;
+    }
+
+    .reader-cover-frame {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 3rem 2rem;
+      width: 100%;
+      max-width: 340px;
+    }
+
+    .reader-cover-ornament {
+      font-size: 1.2rem;
+      color: var(--gold);
+      letter-spacing: 0.5em;
+      margin-bottom: 1.5rem;
+    }
+
+    .reader-cover-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.8rem, 4.5vw, 2.6rem);
+      color: var(--brown);
+      line-height: 1.25;
+      margin-bottom: 0.75rem;
+    }
+
+    .reader-cover-line {
+      width: 50px;
+      height: 1px;
+      background: var(--gold);
+      margin: 0 auto 1rem;
+    }
+
+    .reader-cover-subtitle {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-style: italic;
+      font-size: 1rem;
+      color: var(--brown-light);
+      line-height: 1.6;
+    }
+
+    .reader-cover-foot {
+      font-family: var(--font-hand);
+      font-size: 0.85rem;
+      color: var(--brown-muted);
+      margin-top: 1.5rem;
+    }
+
+    .reader-chapter-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+
+    .reader-chapter-header::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 30px;
+      height: 2px;
+      border-radius: 1px;
+    }
+
+    .reader-chapter-icon {
+      font-size: 2rem;
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+
+    .reader-chapter-title {
+      font-family: var(--font-display);
+      font-size: 1.7rem;
+      color: var(--brown);
+      margin-bottom: 0.15rem;
+    }
+
+    .reader-chapter-subtitle {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-style: italic;
+      font-size: 1rem;
+      color: var(--brown-muted);
+    }
+
+    .reader-qa {
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px dashed rgba(232, 221, 208, 0.6);
+    }
+
+    .reader-qa:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .reader-qa-question {
+      font-family: var(--font-hand);
+      font-size: 1.08rem;
+      color: var(--brown-muted);
+      margin-bottom: 0.35rem;
+      line-height: 1.5;
+    }
+
+    .reader-qa-answer {
+      font-family: var(--font-body);
+      font-size: 1.3rem;
+      color: var(--brown);
+      line-height: 1.8;
+    }
+
+    .reader-end-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+    }
+
+    .reader-end-ornament {
+      font-size: 1.2rem;
+      color: var(--gold);
+      letter-spacing: 0.5em;
+      margin-bottom: 1.5rem;
+    }
+
+    .reader-end-title {
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 2.4rem;
+      color: var(--brown);
+      margin-bottom: 0.5rem;
+    }
+
+    .reader-end-line {
+      width: 50px;
+      height: 1px;
+      background: var(--gold);
+      margin: 0.75rem auto 1.25rem;
+    }
+
+    .reader-end-subtitle {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-style: italic;
+      font-size: 0.95rem;
+      color: var(--brown-light);
+      max-width: 280px;
+      line-height: 1.7;
+      margin-bottom: 2rem;
+    }
+
+    .reader-end-btn {
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      color: white;
+      background: var(--terracotta);
+      border: none;
+      border-radius: var(--radius-xl);
+      padding: 0.7rem 2rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .reader-end-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(196, 114, 90, 0.3);
+      filter: brightness(1.08);
+    }
+
+    .reader-empty-msg {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-style: italic;
+      font-size: 1rem;
+      color: var(--brown-muted);
+      text-align: center;
+      margin-top: 2rem;
+    }
+
+    /* Reader navigation */
+    .reader-nav {
+      position: absolute;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      z-index: 10;
+    }
+
+    .reader-nav-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: rgba(255, 252, 247, 0.1);
+      border: 1px solid rgba(255, 252, 247, 0.18);
+      color: rgba(255, 252, 247, 0.65);
+      font-size: 1.25rem;
+      cursor: pointer;
+      transition: all 0.25s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .reader-nav-btn:hover:not(:disabled) {
+      background: rgba(255, 252, 247, 0.2);
+      color: #FFFCF7;
+      transform: scale(1.05);
+    }
+
+    .reader-nav-btn:disabled {
+      opacity: 0.25;
+      cursor: default;
+    }
+
+    .reader-page-indicator {
+      font-family: var(--font-body);
+      font-weight: 300;
+      font-size: 0.85rem;
+      color: rgba(255, 252, 247, 0.45);
+      min-width: 80px;
+      text-align: center;
+    }
+
+    /* ===== COMPOSE ===== */
+    #compose-screen {
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .compose-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(253, 246, 236, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .compose-back {
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      color: var(--brown-light);
+      padding: 0.25rem;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .compose-back:hover {
+      background: rgba(44, 24, 16, 0.05);
+      color: var(--brown);
+    }
+
+    .compose-header-title {
+      font-family: var(--font-hand);
+      font-size: 1.1rem;
+      color: var(--brown);
+    }
+
+    .compose-save-indicator {
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      color: var(--sage);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .compose-save-indicator.visible { opacity: 1; }
+
+    .compose-body {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    .compose-page {
+      width: 100%;
+      max-width: 640px;
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: 2px var(--radius-lg) var(--radius-lg) 2px;
+      box-shadow:
+        0 4px 24px rgba(44, 24, 16, 0.08),
+        -3px 0 0 var(--border),
+        inset -4px 0 14px rgba(0, 0, 0, 0.02);
+      padding: 3rem 3rem 2rem;
+      position: relative;
+      min-height: 60vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .compose-page::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 28px;
+      background: linear-gradient(90deg, rgba(0,0,0,0.025), transparent);
+      border-radius: 2px 0 0 2px;
+      pointer-events: none;
+    }
+
+    .compose-page::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      right: -5px;
+      bottom: 3px;
+      width: 6px;
+      background: repeating-linear-gradient(to right,
+        #E8DDD0 0px, #E8DDD0 1px,
+        #F5EDE0 1px, #F5EDE0 1.8px
+      );
+      border-radius: 0 2px 2px 0;
+      opacity: 0.6;
+    }
+
+    .compose-ornament {
+      text-align: center;
+      font-size: 1rem;
+      color: var(--gold);
+      letter-spacing: 0.4em;
+      margin-bottom: 1.5rem;
+    }
+
+    .compose-title-input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-family: var(--font-display);
+      font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+      color: var(--brown);
+      text-align: center;
+      outline: none;
+      padding: 0.25rem 0;
+      margin-bottom: 0.5rem;
+    }
+
+    .compose-title-input::placeholder {
+      color: var(--brown-muted);
+      opacity: 0.5;
+    }
+
+    .compose-title-line {
+      width: 60px;
+      height: 1px;
+      background: var(--gold);
+      margin: 0 auto 1.75rem;
+    }
+
+    .compose-text-area {
+      flex: 1;
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-family: var(--font-body);
+      font-size: 1.1rem;
+      line-height: 1.85;
+      color: var(--brown);
+      resize: none;
+      outline: none;
+      min-height: 300px;
+      padding: 0;
+    }
+
+    .compose-text-area::placeholder {
+      color: var(--brown-muted);
+      font-style: italic;
+      font-weight: 300;
+    }
+
+    .compose-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 1.25rem;
+      margin-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .compose-word-count {
+      font-family: var(--font-hand);
+      font-size: 0.85rem;
+      color: var(--brown-muted);
+    }
+
+    .compose-actions {
+      display: flex;
+      gap: 0.6rem;
+    }
+
+    .compose-read-btn {
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: white;
+      background: var(--terracotta);
+      border: none;
+      border-radius: var(--radius-xl);
+      padding: 0.6rem 1.5rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .compose-read-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+      filter: brightness(1.06);
+    }
+
+    .compose-read-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      filter: none;
+    }
+
+    /* Freeform page in reader */
+    .reader-freeform-body {
+      font-family: var(--font-body);
+      font-size: 1.3rem;
+      color: var(--brown);
+      line-height: 1.85;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .reader-freeform-body p {
+      margin-bottom: 1em;
+    }
+
+    .reader-freeform-body p:last-child {
+      margin-bottom: 0;
+    }
+
     /* ===== ANIMATIONS ===== */
     @keyframes fade-up {
       from { opacity: 0; transform: translateY(12px); }
@@ -649,6 +1728,30 @@
       .chapter-btn { flex: 1; justify-content: center; min-width: 120px; }
       .journey-header { padding: 0.6rem 1rem; }
       .question-card { padding: 1rem 1.25rem; }
+
+      .library-book { width: 100px; height: 145px; padding: 0.75rem 0.65rem 0.75rem 0.9rem; }
+      .library-book-title { font-size: 0.78rem; }
+      .library-shelf { gap: 1rem; }
+      .shelf-nameplate { padding: 0.2rem 0.7rem; }
+      .shelf-nameplate-text { font-size: 0.82rem; }
+      .shelf-selector { gap: 0.3rem; }
+      .shelf-pill { font-size: 0.75rem; padding: 0.2rem 0.6rem; }
+
+      .reader-book-wrapper { max-width: 100%; height: 70vh; }
+      .reader-page { padding: 1.5rem 1.25rem 2.5rem; }
+      .reader-book-spine { width: 12px; left: -11px; }
+      .reader-book-edges { width: 5px; right: -3px; }
+      .reader-nav { bottom: 0.75rem; gap: 1rem; }
+      .reader-nav-btn { width: 42px; height: 42px; }
+      .reader-cover-frame { padding: 2rem 1.25rem; }
+      .reader-cover-title { font-size: 1.6rem; }
+      .reader-chapter-title { font-size: 1.3rem; }
+
+      .compose-body { padding: 1rem 0.75rem 3rem; }
+      .compose-page { padding: 2rem 1.5rem 1.5rem; }
+      .compose-title-input { font-size: 1.4rem; }
+      .compose-text-area { font-size: 1rem; min-height: 250px; }
+      .compose-header { padding: 0.6rem 1rem; }
     }
 
     .question-input[data-autoresize] { overflow: hidden; }
@@ -666,6 +1769,8 @@
   <div id="particles-container"></div>
   <div id="welcome-screen" class="screen active"></div>
   <div id="journey-screen" class="screen"></div>
+  <div id="compose-screen" class="screen"></div>
+  <div id="reader-screen" class="screen"></div>
   <div id="archive-screen" class="screen"></div>
 
 <script>
@@ -829,6 +1934,17 @@ const CHAPTERS = [
   }
 ];
 
+/* ===== BOOK COVER COLORS ===== */
+const BOOK_COLORS = [
+  { bg: '#7B3F3F', bgDark: '#5C2D2D', text: '#F0D4B8' },
+  { bg: '#2D4A4A', bgDark: '#1E3838', text: '#B8D8D4' },
+  { bg: '#5C4A35', bgDark: '#3D3020', text: '#E8D4B8' },
+  { bg: '#3D3B6B', bgDark: '#2D2B5B', text: '#C8C4E0' },
+  { bg: '#4A5C35', bgDark: '#354525', text: '#C8D8B0' },
+  { bg: '#6B4A35', bgDark: '#4C3520', text: '#F0D0B0' },
+  { bg: '#5C2040', bgDark: '#3D1530', text: '#E0B8C8' },
+];
+
 /* ===== STATE ===== */
 const state = {
   screen: 'welcome',
@@ -837,6 +1953,13 @@ const state = {
   personName: '',
   currentChapter: 0,
   answers: {},
+};
+
+const readerState = {
+  pages: [],
+  currentPage: 0,
+  flipping: false,
+  personName: '',
 };
 
 /* ===== PARTICLES ===== */
@@ -886,10 +2009,119 @@ function getAllLocalStories() {
 
 function addToStoryList(entry) {
   const list = getAllLocalStories();
-  const idx = list.findIndex(s => s.personId === entry.personId);
-  if (idx >= 0) list[idx] = entry;
+  const idx = list.findIndex(s => s.storyId === entry.storyId);
+  if (idx >= 0) list[idx] = { ...list[idx], ...entry };
   else list.push(entry);
   localStorage.setItem('story_list', JSON.stringify(list));
+}
+
+/* ===== SHELVES ===== */
+let selectedShelfId = null;
+
+function getShelves() {
+  try { return JSON.parse(localStorage.getItem('library_shelves') || '[]'); }
+  catch { return []; }
+}
+
+function saveShelves(shelves) {
+  localStorage.setItem('library_shelves', JSON.stringify(shelves));
+}
+
+function ensureShelves() {
+  let shelves = getShelves();
+  if (shelves.length === 0) {
+    shelves = [{ id: 1, name: 'Family Library' }];
+    saveShelves(shelves);
+  }
+  // Migrate stories without shelfId
+  const stories = getAllLocalStories();
+  let changed = false;
+  stories.forEach(s => {
+    if (!s.shelfId) { s.shelfId = shelves[0].id; changed = true; }
+  });
+  if (changed) localStorage.setItem('story_list', JSON.stringify(stories));
+  selectedShelfId = shelves[0].id;
+  return shelves;
+}
+
+function addNewShelfFromInput() {
+  const input = document.getElementById('new-shelf-input');
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) return;
+  const shelves = getShelves();
+  const maxId = shelves.reduce((max, s) => Math.max(max, s.id), 0);
+  const newId = maxId + 1;
+  shelves.push({ id: newId, name });
+  saveShelves(shelves);
+  selectedShelfId = newId;
+  renderWelcome();
+}
+
+function promptAddShelf() {
+  const btn = document.getElementById('add-shelf-area');
+  if (!btn) return;
+  btn.innerHTML = `
+    <div class="add-shelf-inline">
+      <input type="text" class="add-shelf-input" id="new-shelf-input"
+             placeholder="Shelf name\u2026" autofocus>
+      <button class="add-shelf-confirm" onclick="addNewShelfFromInput()">Add</button>
+    </div>
+  `;
+  const input = document.getElementById('new-shelf-input');
+  input.focus();
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addNewShelfFromInput();
+    if (e.key === 'Escape') renderWelcome();
+  });
+}
+
+function startRenameShelf(shelfId) {
+  const nameEl = document.getElementById(`shelf-name-${shelfId}`);
+  if (!nameEl) return;
+  const current = nameEl.textContent;
+  const plate = nameEl.closest('.shelf-nameplate');
+  plate.innerHTML = `
+    <input type="text" class="shelf-nameplate-input" id="shelf-rename-input"
+           value="${current.replace(/"/g, '&quot;')}">
+  `;
+  const input = document.getElementById('shelf-rename-input');
+  input.focus();
+  input.select();
+  const save = () => {
+    const name = input.value.trim() || current;
+    const shelves = getShelves();
+    const shelf = shelves.find(s => s.id === shelfId);
+    if (shelf) { shelf.name = name; saveShelves(shelves); }
+    renderWelcome();
+  };
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); save(); }
+    if (e.key === 'Escape') renderWelcome();
+  });
+}
+
+function deleteShelf(shelfId) {
+  const shelves = getShelves();
+  if (shelves.length <= 1) return; // Keep at least one shelf
+  const remaining = shelves.filter(s => s.id !== shelfId);
+  saveShelves(remaining);
+  // Reassign orphaned stories
+  const stories = getAllLocalStories();
+  stories.forEach(s => {
+    if (s.shelfId === shelfId) s.shelfId = remaining[0].id;
+  });
+  localStorage.setItem('story_list', JSON.stringify(stories));
+  if (selectedShelfId === shelfId) selectedShelfId = remaining[0].id;
+  renderWelcome();
+}
+
+function selectShelf(shelfId) {
+  selectedShelfId = shelfId;
+  document.querySelectorAll('.shelf-pill').forEach(p => {
+    p.classList.toggle('active', parseInt(p.dataset.shelfId) === shelfId);
+  });
 }
 
 /* ===== AUTO-SAVE ===== */
@@ -933,6 +2165,65 @@ function showScreen(name) {
 /* ===== WELCOME ===== */
 function renderWelcome() {
   const stories = getAllLocalStories();
+  const shelves = ensureShelves();
+  if (!selectedShelfId) selectedShelfId = shelves[0]?.id;
+
+  function renderBook(s, i) {
+    const c = BOOK_COLORS[i % BOOK_COLORS.length];
+    const safeName = s.personName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const isFreeform = s.type === 'freeform';
+    const writeAction = isFreeform
+      ? `openCompose(${s.personId}, ${s.storyId}, '${safeName}')`
+      : `continueStory(${s.personId}, ${s.storyId})`;
+    const bookTitle = s.storyTitle
+      ? s.storyTitle.replace(/"/g, '&quot;')
+      : (s.personName + '\u2019s<br>Story');
+    return `
+      <div class="library-book-item">
+        <div class="library-book"
+             style="background: linear-gradient(145deg, ${c.bg}, ${c.bgDark})"
+             onclick="openReader(${s.personId}, ${s.storyId}, '${safeName}', ${isFreeform})"
+             title="Read ${s.personName}\u2019s Story">
+          <span class="library-book-ornament" style="color: ${c.text}">${isFreeform ? '\u{1F4DC}' : '\u2726'}</span>
+          <span class="library-book-title" style="color: ${c.text}">${bookTitle}</span>
+          <div class="library-book-divider" style="background: ${c.text}"></div>
+          <span class="library-book-ornament" style="color: ${c.text}">\u00B7 \u00B7 \u00B7</span>
+        </div>
+        <div class="library-book-actions">
+          <button class="library-action-btn library-action-read"
+                  onclick="openReader(${s.personId}, ${s.storyId}, '${safeName}', ${isFreeform})">
+            \u{1F4D6} Read
+          </button>
+          <button class="library-action-btn library-action-write"
+                  onclick="${writeAction}">
+            \u270F\uFE0F Write
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderShelfSection(shelf) {
+    const shelfBooks = stories.filter(s => s.shelfId === shelf.id);
+    const canDelete = shelves.length > 1;
+    return `
+      <div class="shelf-section">
+        <div class="shelf-header">
+          <div class="shelf-nameplate">
+            <span class="shelf-nameplate-text" id="shelf-name-${shelf.id}">${shelf.name}</span>
+          </div>
+          <button class="shelf-rename-btn" onclick="startRenameShelf(${shelf.id})" title="Rename shelf">\u270E</button>
+          ${canDelete ? `<button class="shelf-delete-btn" onclick="deleteShelf(${shelf.id})" title="Remove shelf">\u2715</button>` : ''}
+        </div>
+        <div class="library-shelf">
+          ${shelfBooks.length > 0
+            ? shelfBooks.map((s, i) => renderBook(s, stories.indexOf(s))).join('')
+            : '<p class="shelf-empty-msg">No books on this shelf yet</p>'}
+        </div>
+        <div class="library-shelf-wood"></div>
+      </div>
+    `;
+  }
 
   document.getElementById('welcome-screen').innerHTML = `
     <div class="welcome-ornament">\u2727 \u00B7 \u2727 \u00B7 \u2727</div>
@@ -945,26 +2236,45 @@ function renderWelcome() {
     <div class="welcome-form">
       <label class="welcome-name-label">What\u2019s your name?</label>
       <input type="text" class="welcome-name-input" id="welcome-name" placeholder="Your first name..." autocomplete="given-name">
-      <button class="welcome-begin" id="welcome-begin-btn" disabled>Begin Your Story</button>
+
+      ${shelves.length > 1 ? `
+        <div class="shelf-selector">
+          <span class="shelf-selector-label">Add to:</span>
+          ${shelves.map(sh => `
+            <button class="shelf-pill ${sh.id === selectedShelfId ? 'active' : ''}"
+                    data-shelf-id="${sh.id}"
+                    onclick="selectShelf(${sh.id})">${sh.name}</button>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      <button class="welcome-begin" id="welcome-begin-btn" disabled>Begin Guided Story</button>
+      <button class="welcome-begin" id="welcome-compose-btn" disabled
+              style="background: var(--brown-light); font-size: 1rem; padding: 0.7rem 2rem">
+        \u270D\uFE0F Write a Blank Story
+      </button>
     </div>
 
-    ${stories.length > 0 ? `
-      <div class="continue-section">
-        <div class="continue-divider">or pick up where you left off</div>
-        ${stories.map(s => `
-          <button class="continue-btn" data-person-id="${s.personId}" data-story-id="${s.storyId}">
-            \u{1F4D6} ${s.personName}\u2019s Story
-          </button>
-        `).join(' ')}
+    ${stories.length > 0 || shelves.length > 0 ? `
+      <div class="library-section">
+        <h2 class="library-heading">Family Library</h2>
+        <p class="library-subheading">Your stories, organized by shelf</p>
+        ${shelves.map(sh => renderShelfSection(sh)).join('')}
+        <div id="add-shelf-area">
+          <button class="add-shelf-btn" onclick="promptAddShelf()">+ Add a New Shelf</button>
+        </div>
       </div>
     ` : ''}
   `;
 
   const nameInput = document.getElementById('welcome-name');
   const beginBtn = document.getElementById('welcome-begin-btn');
+  const composeBtn = document.getElementById('welcome-compose-btn');
 
   nameInput.addEventListener('input', () => {
-    beginBtn.disabled = !nameInput.value.trim();
+    const hasName = !!nameInput.value.trim();
+    beginBtn.disabled = !hasName;
+    composeBtn.disabled = !hasName;
   });
 
   nameInput.addEventListener('keydown', (e) => {
@@ -975,11 +2285,8 @@ function renderWelcome() {
     if (nameInput.value.trim()) startNewStory(nameInput.value.trim());
   });
 
-  document.querySelectorAll('.continue-btn').forEach(btn => {
-    btn.addEventListener('click', () => continueStory(
-      parseInt(btn.dataset.personId),
-      parseInt(btn.dataset.storyId),
-    ));
+  composeBtn.addEventListener('click', () => {
+    if (nameInput.value.trim()) startFreeformStory(nameInput.value.trim());
   });
 }
 
@@ -992,8 +2299,11 @@ async function startNewStory(name) {
   state.currentChapter = 0;
   state.answers = {};
 
+  const shelves = ensureShelves();
+  const shelfId = selectedShelfId || shelves[0]?.id || 1;
+
   saveToLocal();
-  addToStoryList({ personId: state.personId, storyId: state.storyId, personName: name });
+  addToStoryList({ personId: state.personId, storyId: state.storyId, personName: name, shelfId });
 
   showScreen('journey');
   renderJourney();
@@ -1145,8 +2455,417 @@ function goChapter(index) {
 }
 
 function goHome() {
+  document.onkeydown = null;
   showScreen('welcome');
   renderWelcome();
+}
+
+/* ===== READER ===== */
+/* --- page content renderer --- */
+function buildPageContent(page) {
+  if (page.type === 'cover') {
+    const displayTitle = page.customTitle && page.customTitle !== `${page.personName}'s Story`
+      ? page.customTitle
+      : `${page.personName}\u2019s<br>Story`;
+    const subtitle = page.customTitle && page.customTitle !== `${page.personName}'s Story`
+      ? `by ${page.personName}`
+      : 'A collection of memories,<br>moments, and the little things<br>that make a life.';
+    return `
+      <div class="reader-page-gutter"></div>
+      <div class="reader-cover-content">
+        <div class="reader-cover-frame">
+          <div class="reader-cover-ornament">\u2727 \u00B7 \u2727 \u00B7 \u2727</div>
+          <h1 class="reader-cover-title">${displayTitle}</h1>
+          <div class="reader-cover-line"></div>
+          <p class="reader-cover-subtitle">${subtitle}</p>
+          <p class="reader-cover-foot">\u2727</p>
+        </div>
+      </div>
+    `;
+  }
+
+  if (page.type === 'measured') {
+    return `<div class="reader-page-gutter"></div>${page.html}`;
+  }
+
+  if (page.type === 'end') {
+    return `
+      <div class="reader-page-gutter"></div>
+      <div class="reader-end-content">
+        <div class="reader-end-ornament">\u2727 \u00B7 \u2727 \u00B7 \u2727</div>
+        <h2 class="reader-end-title">The End</h2>
+        <div class="reader-end-line"></div>
+        <p class="reader-end-subtitle">Every story matters.<br>Thank you for sharing yours.</p>
+        <button class="reader-end-btn" onclick="goHome()">Return to Library</button>
+      </div>
+    `;
+  }
+
+  return '';
+}
+
+/* --- helpers to build HTML blocks for measurement --- */
+function esc(s) {
+  return s.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function guidedToBlocks(answers) {
+  const blocks = [];
+  CHAPTERS.forEach(chapter => {
+    const items = chapter.questions
+      .map(q => ({ question: q.text, answer: answers[`${chapter.id}_${q.id}`] || '' }))
+      .filter(qa => qa.answer.trim().length > 0);
+    if (items.length === 0) return;
+
+    blocks.push(`
+      <div class="reader-chapter-header" style="--ch-color: ${chapter.color}">
+        <span class="reader-chapter-icon">${chapter.icon}</span>
+        <h2 class="reader-chapter-title">${chapter.title}</h2>
+        <p class="reader-chapter-subtitle">${chapter.subtitle}</p>
+      </div>
+    `);
+
+    items.forEach(qa => {
+      blocks.push(`
+        <div class="reader-qa">
+          <p class="reader-qa-question">${qa.question}</p>
+          <p class="reader-qa-answer">${esc(qa.answer).replace(/\n/g, '<br>')}</p>
+        </div>
+      `);
+    });
+  });
+  return blocks;
+}
+
+function freeformToBlocks(content) {
+  if (!content.trim()) return [];
+  const blocks = [];
+  // Split on any newline to get fine-grained blocks
+  const lines = content.split(/\n/).filter(l => l.trim());
+  lines.forEach(line => {
+    const words = line.trim().split(/\s+/);
+    if (words.length > 100) {
+      // Very long line — split by sentences
+      const sentences = line.match(/[^.!?]+[.!?]+[\s]*/g) || [line];
+      let chunk = '';
+      sentences.forEach(s => {
+        if ((chunk + s).split(/\s+/).length > 60 && chunk.trim()) {
+          blocks.push(`<p class="reader-freeform-para">${esc(chunk.trim())}</p>`);
+          chunk = s;
+        } else {
+          chunk += s;
+        }
+      });
+      if (chunk.trim()) blocks.push(`<p class="reader-freeform-para">${esc(chunk.trim())}</p>`);
+    } else {
+      blocks.push(`<p class="reader-freeform-para">${esc(line.trim())}</p>`);
+    }
+  });
+  return blocks;
+}
+
+/* --- dynamic pagination using DOM measurement --- */
+function measureAndPaginate(blocks, measureEl) {
+  const maxHeight = measureEl.clientHeight - 16; // safety margin
+  const pages = [];
+  let currentHtml = [];
+
+  blocks.forEach(blockHtml => {
+    const testHtml = currentHtml.concat([blockHtml]).join('');
+    measureEl.innerHTML = `<div class="reader-page-gutter"></div><div>${testHtml}</div>`;
+
+    if (measureEl.children[1].scrollHeight > maxHeight && currentHtml.length > 0) {
+      pages.push(currentHtml.join(''));
+      currentHtml = [blockHtml];
+    } else {
+      currentHtml.push(blockHtml);
+    }
+  });
+
+  if (currentHtml.length > 0) {
+    pages.push(currentHtml.join(''));
+  }
+
+  measureEl.innerHTML = '';
+  return pages;
+}
+
+async function openReader(personId, storyId, personName, isFreeform) {
+  readerState.personName = personName;
+
+  // Fetch content
+  let coverPage;
+  let contentBlocks = [];
+
+  if (isFreeform) {
+    const story = await api('GET', `/api/stories/${storyId}`);
+    const title = story.title || `${personName}'s Story`;
+    coverPage = { type: 'cover', personName, customTitle: title };
+    contentBlocks = freeformToBlocks(story.content || '');
+  } else {
+    const responses = await api('GET', `/api/responses/${storyId}`);
+    const answers = {};
+    responses.forEach(r => { answers[r.question] = r.answer; });
+    coverPage = { type: 'cover', personName };
+    contentBlocks = guidedToBlocks(answers);
+  }
+
+  // Show reader with a hidden measuring page
+  showScreen('reader');
+  document.getElementById('reader-screen').innerHTML = `
+    <div class="reader-book-wrapper">
+      <div class="reader-book">
+        <div class="reader-book-spine"></div>
+        <div class="reader-page" id="reader-measure" style="visibility:hidden;overflow:hidden;"></div>
+        <div class="reader-book-edges"></div>
+      </div>
+    </div>
+  `;
+
+  const measureEl = document.getElementById('reader-measure');
+  const measuredPages = measureAndPaginate(contentBlocks, measureEl);
+
+  // Build final page array
+  readerState.pages = [coverPage];
+  measuredPages.forEach(html => readerState.pages.push({ type: 'measured', html }));
+  readerState.pages.push({ type: 'end' });
+
+  readerState.currentPage = 0;
+  readerState.flipping = false;
+
+  renderReader();
+}
+
+function renderReader() {
+  const page = readerState.pages[readerState.currentPage];
+  const total = readerState.pages.length;
+  const cur = readerState.currentPage;
+
+  document.getElementById('reader-screen').innerHTML = `
+    <button class="reader-close" onclick="goHome()" title="Return to library">\u2715</button>
+
+    <div class="reader-book-wrapper">
+      <div class="reader-book">
+        <div class="reader-book-spine"></div>
+        <div class="reader-page" id="reader-active-page">
+          ${buildPageContent(page)}
+        </div>
+        <div class="reader-book-edges"></div>
+      </div>
+    </div>
+
+    <nav class="reader-nav">
+      <button class="reader-nav-btn" id="reader-prev" onclick="readerFlip(-1)" ${cur === 0 ? 'disabled' : ''}>\u2190</button>
+      <span class="reader-page-indicator" id="reader-indicator">${cur + 1} of ${total}</span>
+      <button class="reader-nav-btn" id="reader-next" onclick="readerFlip(1)" ${cur === total - 1 ? 'disabled' : ''}>\u2192</button>
+    </nav>
+  `;
+
+  setupReaderEvents();
+}
+
+function setupReaderEvents() {
+  document.onkeydown = (e) => {
+    if (state.screen !== 'reader') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); readerFlip(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); readerFlip(-1); }
+    if (e.key === 'Escape') goHome();
+  };
+
+  const wrapper = document.querySelector('.reader-book-wrapper');
+  if (!wrapper) return;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  wrapper.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  wrapper.addEventListener('touchend', (e) => {
+    const dx = touchStartX - e.changedTouches[0].clientX;
+    const dy = Math.abs(touchStartY - e.changedTouches[0].clientY);
+    if (Math.abs(dx) > 50 && Math.abs(dx) > dy) {
+      readerFlip(dx > 0 ? 1 : -1);
+    }
+  }, { passive: true });
+}
+
+function readerFlip(direction) {
+  if (readerState.flipping) return;
+  const nextIndex = readerState.currentPage + direction;
+  if (nextIndex < 0 || nextIndex >= readerState.pages.length) return;
+
+  readerState.flipping = true;
+
+  const book = document.querySelector('.reader-book');
+  const currentEl = document.getElementById('reader-active-page');
+  if (!book || !currentEl) { readerState.flipping = false; return; }
+
+  currentEl.removeAttribute('id');
+  currentEl.style.overflow = 'hidden';
+
+  const nextPage = readerState.pages[nextIndex];
+  const nextEl = document.createElement('div');
+  nextEl.className = 'reader-page';
+  nextEl.id = 'reader-active-page';
+  nextEl.innerHTML = buildPageContent(nextPage);
+
+  if (direction === 1) {
+    nextEl.style.transform = 'rotateY(180deg)';
+    book.insertBefore(nextEl, currentEl);
+    void nextEl.offsetHeight;
+
+    currentEl.classList.add('flip-out-forward');
+    nextEl.classList.add('flip-in-forward');
+  } else {
+    nextEl.style.transform = 'rotateY(-180deg)';
+    book.insertBefore(nextEl, currentEl);
+    void nextEl.offsetHeight;
+
+    currentEl.classList.add('flip-out-backward');
+    nextEl.classList.add('flip-in-backward');
+  }
+
+  setTimeout(() => {
+    currentEl.remove();
+    nextEl.className = 'reader-page';
+    nextEl.style.transform = '';
+    nextEl.scrollTop = 0;
+    readerState.currentPage = nextIndex;
+    readerState.flipping = false;
+    updateReaderNav();
+  }, 720);
+}
+
+function updateReaderNav() {
+  const prevBtn = document.getElementById('reader-prev');
+  const nextBtn = document.getElementById('reader-next');
+  const indicator = document.getElementById('reader-indicator');
+  if (!prevBtn || !nextBtn || !indicator) return;
+
+  prevBtn.disabled = readerState.currentPage === 0;
+  nextBtn.disabled = readerState.currentPage === readerState.pages.length - 1;
+  indicator.textContent = `${readerState.currentPage + 1} of ${readerState.pages.length}`;
+}
+
+/* ===== COMPOSE (FREEFORM STORY) ===== */
+async function startFreeformStory(name) {
+  const result = await api('POST', '/api/persons', { name, age_group: '' });
+  const personId = result.person_id;
+  const storyId = result.story_id;
+
+  const shelves = ensureShelves();
+  const shelfId = selectedShelfId || shelves[0]?.id || 1;
+
+  addToStoryList({
+    personId, storyId, personName: name,
+    type: 'freeform', storyTitle: null, shelfId,
+  });
+
+  openCompose(personId, storyId, name);
+}
+
+async function openCompose(personId, storyId, personName) {
+  state.screen = 'compose';
+
+  // Fetch existing story data
+  let existingTitle = '';
+  let existingContent = '';
+  try {
+    const story = await api('GET', `/api/stories/${storyId}`);
+    existingTitle = story.title || '';
+    existingContent = story.content || '';
+    // Don't show auto-generated titles
+    if (existingTitle === `${personName}'s Story`) existingTitle = '';
+  } catch (e) { /* new story */ }
+
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('compose-screen').classList.add('active');
+
+  document.getElementById('compose-screen').innerHTML = `
+    <header class="compose-header">
+      <button class="compose-back" onclick="goHome()" title="Back to library">\u2190</button>
+      <span class="compose-header-title">${personName}\u2019s Story</span>
+      <span class="compose-save-indicator" id="compose-save-indicator">saved \u2713</span>
+    </header>
+
+    <div class="compose-body">
+      <div class="compose-page">
+        <div class="compose-ornament">\u2727 \u00B7 \u2727 \u00B7 \u2727</div>
+        <input type="text" class="compose-title-input" id="compose-title"
+               placeholder="Title of your story\u2026" value="${existingTitle.replace(/"/g, '&quot;')}"
+               autocomplete="off">
+        <div class="compose-title-line"></div>
+        <textarea class="compose-text-area" id="compose-content"
+                  placeholder="Once upon a time\u2026\n\nWrite freely. Your story will be saved automatically as you type.">${existingContent}</textarea>
+        <div class="compose-footer">
+          <span class="compose-word-count" id="compose-word-count">0 words</span>
+          <div class="compose-actions">
+            <button class="compose-read-btn" id="compose-read-btn"
+                    onclick="readFromCompose(${personId}, ${storyId}, '${personName.replace(/'/g, "\\'")}')"
+                    ${existingContent.trim() ? '' : 'disabled'}>
+              \u{1F4D6} Save & Read
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const titleInput = document.getElementById('compose-title');
+  const contentArea = document.getElementById('compose-content');
+  const wordCount = document.getElementById('compose-word-count');
+  const readBtn = document.getElementById('compose-read-btn');
+
+  function updateWordCount() {
+    const text = contentArea.value.trim();
+    const count = text ? text.split(/\s+/).length : 0;
+    wordCount.textContent = `${count} word${count !== 1 ? 's' : ''}`;
+    readBtn.disabled = !text;
+  }
+  updateWordCount();
+
+  let composeSaveTimer = null;
+  function composeSave() {
+    clearTimeout(composeSaveTimer);
+    composeSaveTimer = setTimeout(async () => {
+      const indicator = document.getElementById('compose-save-indicator');
+      if (indicator) { indicator.textContent = 'saving\u2026'; indicator.classList.add('visible'); }
+
+      const title = titleInput.value.trim() || `${personName}'s Story`;
+      const content = contentArea.value;
+
+      await api('PUT', `/api/stories/${storyId}`, { title, content });
+
+      // Update the story list with the title
+      const list = getAllLocalStories();
+      const entry = list.find(s => s.storyId === storyId);
+      if (entry) {
+        entry.storyTitle = titleInput.value.trim() || null;
+        localStorage.setItem('story_list', JSON.stringify(list));
+      }
+
+      if (indicator) { indicator.textContent = 'saved \u2713'; }
+      setTimeout(() => { if (indicator) indicator.classList.remove('visible'); }, 1500);
+    }, 600);
+  }
+
+  titleInput.addEventListener('input', composeSave);
+  contentArea.addEventListener('input', () => {
+    updateWordCount();
+    composeSave();
+  });
+}
+
+async function readFromCompose(personId, storyId, personName) {
+  // Save first, then open reader
+  const titleInput = document.getElementById('compose-title');
+  const contentArea = document.getElementById('compose-content');
+  if (!contentArea || !contentArea.value.trim()) return;
+
+  const title = titleInput?.value.trim() || `${personName}'s Story`;
+  await api('PUT', `/api/stories/${storyId}`, { title, content: contentArea.value });
+
+  openReader(personId, storyId, personName, true);
 }
 
 /* ===== INIT ===== */
