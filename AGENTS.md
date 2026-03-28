@@ -39,8 +39,22 @@
 - **Sidebar**: Shows Ollama connection status indicator
 - **Key learning**: Qwen3.5 is a thinking model — must pass `think=False` to `ollama.chat()` to disable the reasoning trace. Without this, the model produces enormous internal monologues (200+ lines for "hi") and takes minutes. With `think=False`, responses are fast (~3s for title + tags).
 
+### session 3 — backend restructure (2026-03-28)
+
+- **Moved all backend logic into `backend/` package**:
+  - `backend/db.py` — database layer (unchanged logic, `DB_PATH` resolves to project root)
+  - `backend/ai.py` — LLM title/tag generation (was `ai.py`, previously `llm.py`)
+  - `backend/speech.py` — audio transcription via Whisper API / llm CLI
+  - `backend/questionnaire.py` — adaptive questionnaire logic (extracted from `app.py`: age groups, base questions, tag-specific follow-ups)
+  - `backend/__init__.py` — package marker
+- **Removed `app.py`** — Streamlit frontend is being replaced by a new frontend
+- **`pyproject.toml` moved into `backend/`** — bumped to v0.2.0, removed `streamlit` dep, uses `py-modules` for flat module discovery. The frontend will have its own separate config.
+- **Key decision**: `stories.db` stays at the repo root (not inside `backend/`); `DB_PATH` uses `Path(__file__).resolve().parent.parent` to find it
+- **Repo layout** is now: `backend/` (Python + pyproject.toml), `frontend/` (TBD), shared files at root (AGENTS.md, README, .gitignore, stories.db)
+
 ### what's next (backlog)
 
+- New frontend (replaces Streamlit)
 - Wire up voice-to-text (e.g. Whisper) for spoken story input
 - LLM-powered story refinement suggestions (rewrite/improve flow)
 - Story export for social media (YouTube/Instagram format)
@@ -60,3 +74,15 @@
 9. Ask clarifying questions if deliverables seem to ambiguous.
 10. Do not reimplement functionality that already exists. Use the existing code as a reference.
 11. Install external dependencies instead of re-implementing them. Use `sqlite-utils` for database operations instead of writing raw SQL queries.
+
+---
+
+## Deven
+
+### session 3 — backend restructure (2026-03-28)
+
+- Moved all backend Python modules (`db.py`, `ai.py`, `speech.py`) into `backend/`
+- Extracted questionnaire business logic from the Streamlit `app.py` into `backend/questionnaire.py` (age groups, base questions, 13 tag-specific adaptive follow-up categories)
+- Deleted `app.py` — Streamlit frontend is being replaced
+- Moved `pyproject.toml` into `backend/` so frontend and backend each own their own dependency config
+- `stories.db` lives at repo root, shared between frontend and backend
