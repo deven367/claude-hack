@@ -1,7 +1,7 @@
-.PHONY: setup-backend setup-frontend setup start-backend start-frontend
+.PHONY: setup-backend setup-frontend setup start-backend start-frontend test-backend
 
 setup-backend:
-	cd backend && uv sync
+	cd backend && uv sync --extra dev
 
 setup-frontend:
 	cd frontend && npm install
@@ -13,3 +13,6 @@ start-backend:
 
 start-frontend:
 	cd frontend && npm run dev
+
+test-backend:
+	cd backend && uv run pytest tests/ -v
