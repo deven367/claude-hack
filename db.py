@@ -1,7 +1,9 @@
-"""SQLite database layer for Share Your Story."""
+"""SQLite database layer for Share Your Story, powered by sqlite-utils."""
 
-import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
+
+import sqlite_utils
 
 DB_PATH = Path(__file__).parent / "stories.db"
 
@@ -29,199 +31,194 @@ PRESET_TAGS = [
 ]
 
 
-def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+def get_db() -> sqlite_utils.Database:
+    db = sqlite_utils.Database(DB_PATH)
+    db.execute("PRAGMA foreign_keys = ON")
+    return db
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def init_db():
-    conn = get_connection()
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS persons (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            age_group TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
+    db = get_db()
 
-        CREATE TABLE IF NOT EXISTS stories (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            person_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (person_id) REFERENCES persons(id)
-        );
+    db["persons"].create(
+        {"id": int, "name": str, "age_group": str, "created_at": str},
+        pk="id",
+        if_not_exists=True,
+    )
 
-        CREATE TABLE IF NOT EXISTS tags (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE
-        );
+    db["stories"].create(
+        {
+            "id": int,
+            "person_id": int,
+            "title": str,
+            "content": str,
+            "created_at": str,
+            "updated_at": str,
+        },
+        pk="id",
+        foreign_keys=[("person_id", "persons")],
+        if_not_exists=True,
+    )
 
-        CREATE TABLE IF NOT EXISTS story_tags (
-            story_id INTEGER NOT NULL,
-            tag_id INTEGER NOT NULL,
-            PRIMARY KEY (story_id, tag_id),
-            FOREIGN KEY (story_id) REFERENCES stories(id),
-            FOREIGN KEY (tag_id) REFERENCES tags(id)
-        );
+    db["tags"].create(
+        {"id": int, "name": str},
+        pk="id",
+        if_not_exists=True,
+    )
+    if "idx_tags_name" not in {idx.name for idx in db["tags"].indexes}:
+        db["tags"].create_index(["name"], unique=True, index_name="idx_tags_name", if_not_exists=True)
 
-        CREATE TABLE IF NOT EXISTS questionnaire_responses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            story_id INTEGER NOT NULL,
-            question TEXT NOT NULL,
-            answer TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (story_id) REFERENCES stories(id)
-        );
-    """)
+    db["story_tags"].create(
+        {"story_id": int, "tag_id": int},
+        pk=("story_id", "tag_id"),
+        foreign_keys=[("story_id", "stories"), ("tag_id", "tags")],
+        if_not_exists=True,
+    )
 
-    for tag_name in PRESET_TAGS:
-        conn.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", (tag_name,))
+    db["questionnaire_responses"].create(
+        {
+            "id": int,
+            "story_id": int,
+            "question": str,
+            "answer": str,
+            "created_at": str,
+        },
+        pk="id",
+        foreign_keys=[("story_id", "stories")],
+        if_not_exists=True,
+    )
 
-    conn.commit()
-    conn.close()
+    db["tags"].insert_all(
+        [{"name": t} for t in PRESET_TAGS],
+        ignore=True,
+    )
 
 
 # --- Person operations ---
 
 def create_person(name: str, age_group: str) -> int:
-    conn = get_connection()
-    cursor = conn.execute(
-        "INSERT INTO persons (name, age_group) VALUES (?, ?)",
-        (name, age_group),
-    )
-    conn.commit()
-    person_id = cursor.lastrowid
-    conn.close()
-    return person_id
+    db = get_db()
+    return db["persons"].insert(
+        {"name": name, "age_group": age_group, "created_at": _now()},
+    ).last_pk
 
 
 def get_all_persons() -> list[dict]:
-    conn = get_connection()
-    rows = conn.execute("SELECT * FROM persons ORDER BY name").fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    db = get_db()
+    return list(db["persons"].rows_where(order_by="name"))
 
 
 def get_person(person_id: int) -> dict | None:
-    conn = get_connection()
-    row = conn.execute("SELECT * FROM persons WHERE id = ?", (person_id,)).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    db = get_db()
+    try:
+        return db["persons"].get(person_id)
+    except sqlite_utils.db.NotFoundError:
+        return None
 
 
 # --- Story operations ---
 
 def create_story(person_id: int, title: str, content: str, tag_names: list[str]) -> int:
-    conn = get_connection()
-    cursor = conn.execute(
-        "INSERT INTO stories (person_id, title, content) VALUES (?, ?, ?)",
-        (person_id, title, content),
-    )
-    story_id = cursor.lastrowid
+    db = get_db()
+    now = _now()
+    story_id = db["stories"].insert(
+        {
+            "person_id": person_id,
+            "title": title,
+            "content": content,
+            "created_at": now,
+            "updated_at": now,
+        },
+    ).last_pk
 
     for tag_name in tag_names:
         tag_name = tag_name.strip().lower()
         if not tag_name:
             continue
-        conn.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", (tag_name,))
-        tag_row = conn.execute("SELECT id FROM tags WHERE name = ?", (tag_name,)).fetchone()
-        conn.execute(
-            "INSERT OR IGNORE INTO story_tags (story_id, tag_id) VALUES (?, ?)",
-            (story_id, tag_row["id"]),
+        db["tags"].insert({"name": tag_name}, ignore=True)
+        tag_row = list(db["tags"].rows_where("name = ?", [tag_name]))[0]
+        db["story_tags"].insert(
+            {"story_id": story_id, "tag_id": tag_row["id"]},
+            ignore=True,
         )
 
-    conn.commit()
-    conn.close()
     return story_id
 
 
 def get_stories_for_person(person_id: int) -> list[dict]:
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM stories WHERE person_id = ? ORDER BY created_at DESC",
-        (person_id,),
-    ).fetchall()
-    stories = [dict(r) for r in rows]
+    db = get_db()
+    stories = list(
+        db["stories"].rows_where("person_id = ?", [person_id], order_by="-created_at")
+    )
     for story in stories:
-        story["tags"] = get_tags_for_story(story["id"], conn)
-    conn.close()
+        story["tags"] = _get_tags_for_story(db, story["id"])
     return stories
 
 
 def get_all_stories() -> list[dict]:
-    conn = get_connection()
-    rows = conn.execute("""
+    db = get_db()
+    stories = list(db.execute("""
         SELECT s.*, p.name as person_name
         FROM stories s
         JOIN persons p ON s.person_id = p.id
         ORDER BY s.created_at DESC
-    """).fetchall()
-    stories = [dict(r) for r in rows]
+    """).fetchall())
+    columns = ["id", "person_id", "title", "content", "created_at", "updated_at", "person_name"]
+    stories = [dict(zip(columns, row)) for row in stories]
     for story in stories:
-        story["tags"] = get_tags_for_story(story["id"], conn)
-    conn.close()
+        story["tags"] = _get_tags_for_story(db, story["id"])
     return stories
 
 
 def get_story(story_id: int) -> dict | None:
-    conn = get_connection()
-    row = conn.execute("""
+    db = get_db()
+    rows = list(db.execute("""
         SELECT s.*, p.name as person_name
         FROM stories s
         JOIN persons p ON s.person_id = p.id
         WHERE s.id = ?
-    """, (story_id,)).fetchone()
-    if row:
-        story = dict(row)
-        story["tags"] = get_tags_for_story(story_id, conn)
-        conn.close()
-        return story
-    conn.close()
-    return None
+    """, [story_id]).fetchall())
+    if not rows:
+        return None
+    columns = ["id", "person_id", "title", "content", "created_at", "updated_at", "person_name"]
+    story = dict(zip(columns, rows[0]))
+    story["tags"] = _get_tags_for_story(db, story_id)
+    return story
 
 
 def update_story(story_id: int, title: str, content: str):
-    conn = get_connection()
-    conn.execute(
-        "UPDATE stories SET title = ?, content = ?, updated_at = datetime('now') WHERE id = ?",
-        (title, content, story_id),
-    )
-    conn.commit()
-    conn.close()
+    db = get_db()
+    db["stories"].update(story_id, {"title": title, "content": content, "updated_at": _now()})
 
 
 # --- Tag operations ---
 
-def get_tags_for_story(story_id: int, conn: sqlite3.Connection | None = None) -> list[str]:
-    should_close = conn is None
-    if conn is None:
-        conn = get_connection()
-    rows = conn.execute("""
+def _get_tags_for_story(db: sqlite_utils.Database, story_id: int) -> list[str]:
+    rows = db.execute("""
         SELECT t.name FROM tags t
         JOIN story_tags st ON t.id = st.tag_id
         WHERE st.story_id = ?
         ORDER BY t.name
-    """, (story_id,)).fetchall()
-    if should_close:
-        conn.close()
-    return [r["name"] for r in rows]
+    """, [story_id]).fetchall()
+    return [r[0] for r in rows]
+
+
+def get_tags_for_story(story_id: int) -> list[str]:
+    return _get_tags_for_story(get_db(), story_id)
 
 
 def get_all_tags() -> list[str]:
-    conn = get_connection()
-    rows = conn.execute("SELECT name FROM tags ORDER BY name").fetchall()
-    conn.close()
-    return [r["name"] for r in rows]
+    db = get_db()
+    return [row["name"] for row in db["tags"].rows_where(order_by="name")]
 
 
 def get_stories_by_tag(tag_name: str) -> list[dict]:
-    conn = get_connection()
-    rows = conn.execute("""
+    db = get_db()
+    rows = db.execute("""
         SELECT s.*, p.name as person_name
         FROM stories s
         JOIN persons p ON s.person_id = p.id
@@ -229,32 +226,34 @@ def get_stories_by_tag(tag_name: str) -> list[dict]:
         JOIN tags t ON st.tag_id = t.id
         WHERE t.name = ?
         ORDER BY s.created_at DESC
-    """, (tag_name,)).fetchall()
-    stories = [dict(r) for r in rows]
+    """, [tag_name]).fetchall()
+    columns = ["id", "person_id", "title", "content", "created_at", "updated_at", "person_name"]
+    stories = [dict(zip(columns, row)) for row in rows]
     for story in stories:
-        story["tags"] = get_tags_for_story(story["id"], conn)
-    conn.close()
+        story["tags"] = _get_tags_for_story(db, story["id"])
     return stories
 
 
 # --- Questionnaire operations ---
 
 def save_questionnaire_responses(story_id: int, responses: list[dict]):
-    conn = get_connection()
-    for resp in responses:
-        conn.execute(
-            "INSERT INTO questionnaire_responses (story_id, question, answer) VALUES (?, ?, ?)",
-            (story_id, resp["question"], resp.get("answer", "")),
-        )
-    conn.commit()
-    conn.close()
+    db = get_db()
+    now = _now()
+    db["questionnaire_responses"].insert_all([
+        {
+            "story_id": story_id,
+            "question": resp["question"],
+            "answer": resp.get("answer", ""),
+            "created_at": now,
+        }
+        for resp in responses
+    ])
 
 
 def get_questionnaire_responses(story_id: int) -> list[dict]:
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM questionnaire_responses WHERE story_id = ? ORDER BY id",
-        (story_id,),
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    db = get_db()
+    return list(
+        db["questionnaire_responses"].rows_where(
+            "story_id = ?", [story_id], order_by="id"
+        )
+    )
