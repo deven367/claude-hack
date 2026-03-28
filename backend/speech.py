@@ -14,7 +14,6 @@ class TranscriptionError(Exception):
 
 
 def get_openai_client() -> OpenAI:
-    # Explicitly pass api_key to avoid env resolution issues in some runtimes
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise TranscriptionError(
@@ -33,7 +32,6 @@ def _transcribe_with_llm_cli(audio_path: Path) -> Optional[str]:
     if not llm_path:
         return None
 
-    # Prefer llm's own configured key; if not set, pass --key from env
     api_key = os.getenv("OPENAI_API_KEY")
     cmd = [llm_path, "whisper-api", str(audio_path)]
     if api_key:
@@ -47,7 +45,6 @@ def _transcribe_with_llm_cli(audio_path: Path) -> Optional[str]:
             text=True,
         )
     except subprocess.CalledProcessError as e:
-        # If llm exists but failed, surface the error
         stderr = e.stderr.strip() if e.stderr else "unknown error"
         raise TranscriptionError(f"llm whisper-api failed: {stderr}") from e
     text = (result.stdout or "").strip()
@@ -60,14 +57,12 @@ def transcribe_audio_file(audio_path: Path, *, model: str = "gpt-4o-mini-transcr
     if not audio_path.exists() or not audio_path.is_file():
         raise TranscriptionError(f"Audio file not found: {audio_path}")
 
-    # 1) Try llm-whisper-api CLI first if available
     use_cli_first = os.getenv("USE_LLM_WHISPER_API", "1") not in ("0", "false", "False")
     if use_cli_first:
         cli_text = _transcribe_with_llm_cli(audio_path)
         if isinstance(cli_text, str):
             return cli_text
 
-    # 2) Fallback to direct OpenAI SDK
     client = get_openai_client()
     try:
         with audio_path.open("rb") as f:
@@ -79,9 +74,7 @@ def transcribe_audio_file(audio_path: Path, *, model: str = "gpt-4o-mini-transcr
     except Exception as e:
         raise TranscriptionError(str(e)) from e
 
-    # The SDK returns a plain text string when response_format="text"
     text: Optional[str] = resp  # type: ignore[assignment]
     if not text or not isinstance(text, str):
         raise TranscriptionError("Empty transcription result.")
     return text.strip()
-

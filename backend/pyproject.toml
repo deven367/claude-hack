@@ -1,13 +1,13 @@
 [project]
 name = "share-your-story"
-version = "0.1.0"
+version = "0.2.0"
 description = "A simple interface for people to share their stories, with adaptive questionnaires and tag-based organization"
 requires-python = ">=3.12"
 dependencies = [
-    "streamlit",
     "llm",
     "llm-ollama",
     "llm-whisper-api",
+    "sqlite-utils",
 ]
 
 [project.optional-dependencies]
@@ -21,4 +21,4 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["app", "db", "speech"]
+py-modules = ["db", "ai", "speech", "questionnaire"]

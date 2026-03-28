@@ -5,7 +5,7 @@ from pathlib import Path
 
 import sqlite_utils
 
-DB_PATH = Path(__file__).parent / "stories.db"
+DB_PATH = Path(__file__).resolve().parent.parent / "stories.db"
 
 PRESET_TAGS = [
     "childhood",
