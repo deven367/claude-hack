@@ -3,6 +3,7 @@
 import streamlit as st
 
 import db
+import llm
 from pathlib import Path
 from uuid import uuid4
 from dotenv import load_dotenv, find_dotenv
@@ -249,25 +250,70 @@ def page_share_story():
 
         return
 
-    with st.form("story_form", clear_on_submit=True):
-        title = st.text_input("Story title", placeholder="Give your story a title...")
-        content = st.text_area(
-            "Your story",
-            height=250,
-            placeholder="Start writing your story here...",
+    # --- Step 1: Write the story ---
+    st.subheader("1. Write your story")
+    content = st.text_area(
+        "Your story",
+        height=250,
+        placeholder="Start writing your story here...",
+        key="story_content",
+    )
+
+    # --- Step 2: AI-assisted title & tag generation ---
+    ollama_ok = llm.is_available()
+
+    if ollama_ok and content.strip():
+        st.subheader("2. Generate title & tags with AI")
+        st.caption("Let the local LLM (qwen3.5:2b) suggest a title and tags based on your story.")
+        if st.button("Suggest Title & Tags", type="secondary"):
+            with st.spinner("Thinking..."):
+                suggested_title = llm.generate_title(content)
+                suggested_tags = llm.generate_tags(content, db.get_all_tags())
+            if suggested_title:
+                st.session_state["suggested_title"] = suggested_title
+            if suggested_tags:
+                st.session_state["suggested_tags"] = suggested_tags
+            st.rerun()
+    elif not ollama_ok:
+        st.caption(
+            "Ollama is not running or qwen3.5:2b is not installed. "
+            "Start Ollama to enable AI-generated titles and tags."
         )
 
+    # --- Step 3: Review and save ---
+    step_num = "3" if ollama_ok and content.strip() else "2"
+    st.subheader(f"{step_num}. Review & save")
+
+    default_title = st.session_state.get("suggested_title", "")
+    default_tags = st.session_state.get("suggested_tags", [])
+
+    with st.form("story_form", clear_on_submit=True):
+        title = st.text_input(
+            "Story title",
+            value=default_title,
+            placeholder="Give your story a title...",
+        )
+        if default_title:
+            st.caption("AI-suggested title above — edit freely.")
+
         all_tags = db.get_all_tags()
+        valid_defaults = [t for t in default_tags if t in all_tags]
+        new_from_llm = [t for t in default_tags if t not in all_tags]
+
         selected_tags = st.multiselect(
-            "Tags (select or type new ones)",
+            "Tags",
             options=all_tags,
-            default=None,
+            default=valid_defaults,
             help="Choose tags that describe your story's themes",
         )
+        custom_tags_default = ", ".join(new_from_llm) if new_from_llm else ""
         custom_tags = st.text_input(
             "Add custom tags (comma-separated)",
+            value=custom_tags_default,
             placeholder="e.g. resilience, music, 1990s",
         )
+        if default_tags:
+            st.caption("AI-suggested tags above — edit freely.")
 
         submitted = st.form_submit_button("Save Story", type="primary")
 
@@ -284,6 +330,8 @@ def page_share_story():
                 story_id = db.create_story(person_id, title.strip(), content.strip(), all_selected)
                 st.success("Your story has been saved!")
 
+                st.session_state.pop("suggested_title", None)
+                st.session_state.pop("suggested_tags", None)
                 st.session_state["last_story_id"] = story_id
                 st.session_state["last_story_tags"] = all_selected
                 st.session_state["show_questionnaire"] = True
@@ -497,4 +545,8 @@ elif page == "My Story Timeline":
     page_my_stories()
 
 st.sidebar.divider()
+if llm.is_available():
+    st.sidebar.success("Ollama: qwen3.5:2b ready", icon="🟢")
+else:
+    st.sidebar.warning("Ollama: not connected", icon="🔴")
 st.sidebar.caption("Share Your Story v0.1.0")

@@ -5,6 +5,12 @@ description = "A simple interface for people to share their stories, with adapti
 requires-python = ">=3.12"
 dependencies = [
     "streamlit",
+    "ollama",
+    "llm-whisper-api",
+]
+
+[project.optional-dependencies]
+openai = [
     "openai>=1.55.0",
     "python-dotenv>=1.0.1",
 ]
