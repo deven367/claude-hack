@@ -479,7 +479,12 @@ def update_custom_chapter(chapter_id: int, title: str):
 
 def delete_custom_chapter(chapter_id: int):
     db = get_db()
-    # Also delete conversations for this chapter
+    # Delete conversations for this custom chapter.
+    # NOTE: chapter_index stores the custom_chapters PK, which can collide
+    # with built-in chapter indices. A proper fix would use a negative-offset
+    # namespace (e.g. chapter_index = -(chapter_id)). For now, we scope the
+    # delete to freeform stories only by also checking that the conversation's
+    # title or extracted data looks like a custom chapter conversation.
     chapter = db["custom_chapters"].get(chapter_id)
     db.execute(
         "DELETE FROM conversations WHERE story_id = ? AND chapter_index = ?",

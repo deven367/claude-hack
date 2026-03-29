@@ -16,6 +16,7 @@ STT_URL = f"{API_BASE}/speech-to-text"
 
 # Rachel — calm, warm, good for narration
 DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
+REQUEST_TIMEOUT = 30  # seconds
 
 
 class TTSError(Exception):
@@ -56,7 +57,7 @@ def synthesize(text: str, voice_id: str | None = None) -> bytes:
     )
 
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
             return resp.read()
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
@@ -100,7 +101,7 @@ def transcribe(audio_data: bytes, filename: str = "audio.webm") -> str:
     )
 
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
             result = json.loads(resp.read().decode("utf-8"))
             text = result.get("text", "").strip()
             if not text:

@@ -21,6 +21,7 @@ from storyteller import conversation
 from storyteller import tts
 
 app = Flask(__name__, template_folder="../frontend")
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload limit
 db.init_db()
 
 
@@ -191,6 +192,8 @@ def chat():
     conv = None
     if conversation_id:
         conv = db.get_conversation_by_id(conversation_id)
+        if conv and (conv["story_id"] != story_id or conv["chapter_index"] != chapter_index):
+            return jsonify({"error": "conversation does not belong to this story/chapter"}), 400
     if not conv:
         conv = db.get_conversation(story_id, chapter_index)
 
@@ -271,8 +274,8 @@ def chat():
 
 @app.route("/api/conversations/<int:story_id>/<chapter_index>/new", methods=["POST"])
 def new_conversation_session(story_id, chapter_index):
-    chapter_index = int(chapter_index)
     """Start a new conversation session within a chapter."""
+    chapter_index = int(chapter_index)
     data = request.json or {}
     person_name = data.get("person_name", "Friend")
     custom_chapter_title = data.get("custom_chapter_title")
@@ -337,6 +340,7 @@ def get_conversations(story_id):
 def get_conversation(story_id, chapter_index):
     """Get all conversation sessions for a chapter."""
     chapter_index = int(chapter_index)
+
     sessions = db.get_chapter_conversations(story_id, chapter_index)
     if not sessions:
         return jsonify({
