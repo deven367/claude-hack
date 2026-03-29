@@ -22,6 +22,7 @@ A simple, warm interface for capturing life stories through conversational AI in
 - **Qwen think mode**: Local Ollama model `qwen3.5:2b` requires `think=False` to avoid enormous reasoning traces.
 - **Node version**: `package-lock.json` must be generated with the same Node version as CI (currently Node 20).
 - **Chapter data duplication**: Questions are defined in both `frontend/src/data/chapters.js` and `backend/storyteller/conversation.py`. Keep them in sync.
+- **Whisper transcription**: `llm-whisper-api` plugin is installed. Requires OpenAI API key: `cd backend && .venv/bin/llm keys set openai` or `OPENAI_API_KEY` env var. The `POST /api/transcribe` endpoint accepts multipart audio uploads.
 
 ## Build log
 
@@ -58,9 +59,14 @@ A simple, warm interface for capturing life stories through conversational AI in
 - Welcome screen: per-person shelves, "Begin Your Life Storybook" / "Tell a Story of Your Own" CTAs, library section with enhanced bookshelf styling
 - PRs: #20 (docs), #21 (this PR)
 
+### Session 6 — Voice input (Billy, 2026-03-28)
+- Wired up `speech.py` (Whisper via `llm-whisper-api` CLI / OpenAI SDK) to a new `POST /api/transcribe` endpoint
+- Mic button in ChatScreen input area: record → stop → transcribe → fills text input for review before sending
+- Works in both guided and freeform chat modes
+- PR: #23
+
 ## Backlog
 
-- Wire up voice-to-text for spoken conversation input
 - Optimize extraction (runs on every message — could batch or run async)
 - Story export for social media
 - Richer visualization (timeline, tag clouds)
