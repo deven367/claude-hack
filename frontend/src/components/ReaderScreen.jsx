@@ -126,7 +126,7 @@ function buildPageContent(page, t) {
   if (page.type === 'cover') {
     const displayTitle = page.customTitle && page.customTitle !== `${page.personName}'s Story`
       ? page.customTitle
-      : `${page.personName}<br>${t('welcome.story').replace(/\n/g, '<br>')}`
+      : `${page.personName}${t('welcome.story').replace(/\n/g, '<br>')}`
     const subtitle = page.customTitle && page.customTitle !== `${page.personName}'s Story`
       ? `${t('reader.by')} ${page.personName}`
       : t('reader.coverSubtitle').replace(/\n/g, '<br>')

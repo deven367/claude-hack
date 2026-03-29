@@ -1,7 +1,22 @@
 """Share Your Story - Flask server with REST API."""
 
 import os
+import sys
 from pathlib import Path
+
+# Ensure the backend directory is on sys.path so 'storyteller' is importable
+# (needed for Vercel where the working directory may not be backend/)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from flask import Flask, jsonify, request, Response
+
+from storyteller import db
+from storyteller import conversation
+from storyteller import tts
+
+app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload limit
+db.init_db()
 
 # Load .env file from project root (no dependencies needed)
 _env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -16,7 +31,7 @@ if _env_path.exists():
             continue
         # Support lines like "export KEY=VALUE"
         if line.startswith("export "):
-            line = line[len("export "):].lstrip()
+            line = line[len("export ") :].lstrip()
         if "=" not in line:
             continue
         key, _, value = line.partition("=")
@@ -33,45 +48,51 @@ if _env_path.exists():
             continue
         os.environ.setdefault(key, value)
 
-from flask import Flask, render_template, jsonify, request
 
-from flask import Response
-
-from storyteller import db
-from storyteller import conversation
-from storyteller import tts
-
-app = Flask(__name__, template_folder="../frontend")
-app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload limit
-db.init_db()
-
-
-@app.after_request
-def add_cors_headers(response):
-    origin = request.headers.get("Origin", "")
+def _is_allowed_origin(origin: str) -> bool:
     allowed_origins = [
         "https://deven367.github.io",
         "http://localhost:5173",
         "http://localhost:5050",
     ]
-    if origin.endswith(".vercel.app") and "deven367" in origin:
-        allowed_origins.append(origin)
     if origin in allowed_origins:
+        return True
+    if origin.endswith(".vercel.app") and ("deven367" in origin or "claude-hack" in origin):
+        return True
+    return False
+
+
+@app.before_request
+def handle_preflight():
+    """Handle CORS preflight requests before any route logic."""
+    if request.method == "OPTIONS":
+        response = Response("", status=204)
+        origin = request.headers.get("Origin", "")
+        if _is_allowed_origin(origin):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+            response.headers["Access-Control-Allow-Methods"] = (
+                "GET, POST, PUT, DELETE, OPTIONS"
+            )
+            response.headers["Access-Control-Max-Age"] = "86400"
+        return response
+
+
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get("Origin", "")
+    if _is_allowed_origin(origin):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Methods"] = (
+            "GET, POST, PUT, DELETE, OPTIONS"
+        )
     return response
-
-
-@app.route("/api/<path:path>", methods=["OPTIONS"])
-def handle_preflight(path):
-    """Handle CORS preflight requests for all API routes."""
-    return "", 204
 
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return jsonify({"name": "Share Your Story API", "status": "ok"})
 
 
 @app.route("/api/persons", methods=["GET"])
@@ -101,7 +122,9 @@ def update_person(person_id):
         # Also update story title
         stories = db.get_stories_for_person(person_id)
         if stories:
-            db.update_story(stories[0]["id"], f"{name}'s Story", stories[0].get("content", ""))
+            db.update_story(
+                stories[0]["id"], f"{name}'s Story", stories[0].get("content", "")
+            )
     return jsonify({"status": "ok"})
 
 
@@ -177,6 +200,7 @@ def delete_conversation(conversation_id):
 
 # --- Custom chapters ---
 
+
 @app.route("/api/stories/<int:story_id>/custom-chapters", methods=["GET"])
 def get_custom_chapters(story_id):
     chapters = db.get_custom_chapters(story_id)
@@ -209,6 +233,7 @@ def delete_custom_chapter(chapter_id):
 
 # --- Conversation / Chat endpoints ---
 
+
 @app.route("/api/chapters", methods=["GET"])
 def get_chapters():
     """Return chapter metadata for all chapters."""
@@ -228,7 +253,9 @@ def chat():
     message = data.get("message", "").strip()
     person_name = data.get("person_name", "Friend")
     custom_chapter_title = data.get("custom_chapter_title")  # set for freeform stories
-    custom_chapter_id = data.get("custom_chapter_id")  # PK of custom_chapters row, if applicable
+    custom_chapter_id = data.get(
+        "custom_chapter_id"
+    )  # PK of custom_chapters row, if applicable
     language = data.get("language", "en")  # UI language for multilingual support
 
     if story_id is None or chapter_index is None:
@@ -238,8 +265,12 @@ def chat():
     conv = None
     if conversation_id:
         conv = db.get_conversation_by_id(conversation_id)
-        if conv and (conv["story_id"] != story_id or conv["chapter_index"] != chapter_index):
-            return jsonify({"error": "conversation does not belong to this story/chapter"}), 400
+        if conv and (
+            conv["story_id"] != story_id or conv["chapter_index"] != chapter_index
+        ):
+            return jsonify(
+                {"error": "conversation does not belong to this story/chapter"}
+            ), 400
     if not conv:
         conv = db.get_conversation(story_id, chapter_index)
 
@@ -275,26 +306,46 @@ def chat():
 
     # If no messages yet, generate opening message from AI
     if not messages and not message:
-        opening = conversation.get_opening_message(chapter_index, person_name, prior_context=prior_stories, custom_chapter_title=effective_custom_title, language=language)
+        opening = conversation.get_opening_message(
+            chapter_index,
+            person_name,
+            prior_context=prior_stories,
+            custom_chapter_title=effective_custom_title,
+            language=language,
+        )
         messages = [{"role": "assistant", "content": opening, "timestamp": ""}]
         if conv_id:
             db.update_conversation(conv_id, messages, extracted)
         else:
-            conv_id = db.create_conversation(story_id, chapter_index, messages, extracted, custom_chapter_id=custom_chapter_id)
-        return jsonify({
-            "ai_message": opening,
-            "messages": messages,
-            "extracted_answers": extracted,
-            "chapter_info": conversation.get_chapter_info(chapter_index),
-            "conversation_id": conv_id,
-        })
+            conv_id = db.create_conversation(
+                story_id,
+                chapter_index,
+                messages,
+                extracted,
+                custom_chapter_id=custom_chapter_id,
+            )
+        return jsonify(
+            {
+                "ai_message": opening,
+                "messages": messages,
+                "extracted_answers": extracted,
+                "chapter_info": conversation.get_chapter_info(chapter_index),
+                "conversation_id": conv_id,
+            }
+        )
 
     if not message:
         return jsonify({"error": "message is required"}), 400
 
     # Get AI response
     ai_response, updated_messages = conversation.chat(
-        person_name, chapter_index, messages, message, prior_context=prior_stories, custom_chapter_title=effective_custom_title, language=language,
+        person_name,
+        chapter_index,
+        messages,
+        message,
+        prior_context=prior_stories,
+        custom_chapter_title=effective_custom_title,
+        language=language,
     )
 
     # Extract answers from the updated conversation
@@ -306,16 +357,24 @@ def chat():
     if conv_id:
         db.update_conversation(conv_id, updated_messages, extracted)
     else:
-        conv_id = db.create_conversation(story_id, chapter_index, updated_messages, extracted, custom_chapter_id=custom_chapter_id)
+        conv_id = db.create_conversation(
+            story_id,
+            chapter_index,
+            updated_messages,
+            extracted,
+            custom_chapter_id=custom_chapter_id,
+        )
 
-    return jsonify({
-        "ai_message": ai_response,
-        "messages": updated_messages,
-        "extracted_answers": extracted,
-        "chapter_info": chapter_info,
-        "conversation_id": conv_id,
-        "status": "in_progress",
-    })
+    return jsonify(
+        {
+            "ai_message": ai_response,
+            "messages": updated_messages,
+            "extracted_answers": extracted,
+            "chapter_info": chapter_info,
+            "conversation_id": conv_id,
+            "status": "in_progress",
+        }
+    )
 
 
 @app.route("/api/conversations/<int:story_id>/<chapter_index>/new", methods=["POST"])
@@ -342,18 +401,28 @@ def new_conversation_session(story_id, chapter_index):
         if chapter_info:
             effective_custom_title = chapter_info.get("title")
 
-    opening = conversation.get_opening_message(chapter_index, person_name, prior_context=prior_stories, custom_chapter_title=effective_custom_title, language=language)
+    opening = conversation.get_opening_message(
+        chapter_index,
+        person_name,
+        prior_context=prior_stories,
+        custom_chapter_title=effective_custom_title,
+        language=language,
+    )
     messages = [{"role": "assistant", "content": opening, "timestamp": ""}]
-    conv_id = db.create_conversation(story_id, chapter_index, messages, {}, custom_chapter_id=custom_chapter_id)
+    conv_id = db.create_conversation(
+        story_id, chapter_index, messages, {}, custom_chapter_id=custom_chapter_id
+    )
 
-    return jsonify({
-        "ai_message": opening,
-        "messages": messages,
-        "extracted_answers": {},
-        "chapter_info": conversation.get_chapter_info(chapter_index),
-        "conversation_id": conv_id,
-        "session_number": len(all_sessions) + 1,
-    })
+    return jsonify(
+        {
+            "ai_message": opening,
+            "messages": messages,
+            "extracted_answers": {},
+            "chapter_info": conversation.get_chapter_info(chapter_index),
+            "conversation_id": conv_id,
+            "session_number": len(all_sessions) + 1,
+        }
+    )
 
 
 @app.route("/api/conversations/<int:story_id>", methods=["GET"])
@@ -373,14 +442,18 @@ def get_conversations(story_id):
     result = []
     for ci, info in sorted(chapters.items()):
         chapter_info = conversation.get_chapter_info(ci)
-        result.append({
-            "chapter_index": ci,
-            "chapter_info": chapter_info,
-            "message_count": info["total_messages"],
-            "answers_count": info["total_answers"],
-            "session_count": info["sessions"],
-            "status": "in_progress" if info["total_messages"] > 0 else "not_started",
-        })
+        result.append(
+            {
+                "chapter_index": ci,
+                "chapter_info": chapter_info,
+                "message_count": info["total_messages"],
+                "answers_count": info["total_answers"],
+                "session_count": info["sessions"],
+                "status": "in_progress"
+                if info["total_messages"] > 0
+                else "not_started",
+            }
+        )
     return jsonify(result)
 
 
@@ -391,39 +464,43 @@ def get_conversation(story_id, chapter_index):
 
     sessions = db.get_chapter_conversations(story_id, chapter_index)
     if not sessions:
-        return jsonify({
-            "sessions": [],
-            "latest": {
-                "messages": [],
-                "extracted_answers": {},
-                "conversation_id": None,
-            },
-            "status": "not_started",
-            "chapter_info": conversation.get_chapter_info(chapter_index),
-        })
+        return jsonify(
+            {
+                "sessions": [],
+                "latest": {
+                    "messages": [],
+                    "extracted_answers": {},
+                    "conversation_id": None,
+                },
+                "status": "not_started",
+                "chapter_info": conversation.get_chapter_info(chapter_index),
+            }
+        )
 
     latest = sessions[-1]
-    return jsonify({
-        "sessions": [
-            {
-                "conversation_id": s["id"],
-                "title": s.get("title"),
-                "messages": s["messages"],
-                "message_count": len(s["messages"]),
-                "answers_count": len(s["extracted_answers"]),
-                "extracted_answers": s["extracted_answers"],
-                "created_at": s.get("created_at", ""),
-            }
-            for s in sessions
-        ],
-        "latest": {
-            "messages": latest["messages"],
-            "extracted_answers": latest["extracted_answers"],
-            "conversation_id": latest["id"],
-        },
-        "status": "in_progress",
-        "chapter_info": conversation.get_chapter_info(chapter_index),
-    })
+    return jsonify(
+        {
+            "sessions": [
+                {
+                    "conversation_id": s["id"],
+                    "title": s.get("title"),
+                    "messages": s["messages"],
+                    "message_count": len(s["messages"]),
+                    "answers_count": len(s["extracted_answers"]),
+                    "extracted_answers": s["extracted_answers"],
+                    "created_at": s.get("created_at", ""),
+                }
+                for s in sessions
+            ],
+            "latest": {
+                "messages": latest["messages"],
+                "extracted_answers": latest["extracted_answers"],
+                "conversation_id": latest["id"],
+            },
+            "status": "in_progress",
+            "chapter_info": conversation.get_chapter_info(chapter_index),
+        }
+    )
 
 
 @app.route("/api/transcribe", methods=["POST"])
