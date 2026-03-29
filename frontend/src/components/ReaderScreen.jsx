@@ -126,9 +126,9 @@ function buildPageContent(page, t) {
   if (page.type === 'cover') {
     const displayTitle = page.customTitle && page.customTitle !== `${page.personName}'s Story`
       ? page.customTitle
-      : `${page.personName}\u2019s<br>${t('chat.storyN')}`
+      : `${page.personName}<br>${t('welcome.story').replace(/\n/g, '<br>')}`
     const subtitle = page.customTitle && page.customTitle !== `${page.personName}'s Story`
-      ? `by ${page.personName}`
+      ? `${t('reader.by')} ${page.personName}`
       : t('reader.coverSubtitle').replace(/\n/g, '<br>')
     return `
       <div class="reader-page-gutter"></div>
