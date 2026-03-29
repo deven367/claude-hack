@@ -27,3 +27,8 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["storyteller*"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

@@ -15,6 +15,11 @@ export function addToStoryList(entry) {
   localStorage.setItem('story_list', JSON.stringify(list))
 }
 
+export function removeFromStoryList(storyId) {
+  const list = getAllLocalStories().filter(s => s.storyId !== storyId)
+  localStorage.setItem('story_list', JSON.stringify(list))
+}
+
 export function updateStoryInList(storyId, updates) {
   const list = getAllLocalStories()
   const entry = list.find(s => s.storyId === storyId)

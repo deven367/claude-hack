@@ -93,11 +93,27 @@ def init_db():
         if_not_exists=True,
     )
 
+    # custom_chapters must be created before conversations (which has an FK to it)
+    db["custom_chapters"].create(
+        {
+            "id": int,
+            "story_id": int,
+            "title": str,
+            "sort_order": int,
+            "created_at": str,
+        },
+        pk="id",
+        foreign_keys=[("story_id", "stories")],
+        if_not_exists=True,
+    )
+
     db["conversations"].create(
         {
             "id": int,
             "story_id": int,
             "chapter_index": int,
+            "custom_chapter_id": int,  # FK to custom_chapters; NULL for built-in chapters
+            "title": str,          # optional custom name for this session
             "messages": str,       # JSON array of {role, content, timestamp}
             "extracted_answers": str,  # JSON object {question_id: answer_text}
             "status": str,         # "in_progress" or "completed"
@@ -105,9 +121,15 @@ def init_db():
             "updated_at": str,
         },
         pk="id",
-        foreign_keys=[("story_id", "stories")],
+        foreign_keys=[("story_id", "stories"), ("custom_chapter_id", "custom_chapters")],
         if_not_exists=True,
     )
+    # Add title column if upgrading from older schema
+    if "title" not in {col.name for col in db["conversations"].columns}:
+        db.execute("ALTER TABLE conversations ADD COLUMN title TEXT")
+    # Add custom_chapter_id column if upgrading from older schema
+    if "custom_chapter_id" not in {col.name for col in db["conversations"].columns}:
+        db.execute("ALTER TABLE conversations ADD COLUMN custom_chapter_id INTEGER REFERENCES custom_chapters(id)")
 
     db["tags"].insert_all(
         [{"name": t} for t in PRESET_TAGS],
@@ -217,6 +239,27 @@ def update_story(story_id: int, title: str, content: str):
     db["stories"].update(story_id, {"title": title, "content": content, "updated_at": _now()})
 
 
+def delete_story(story_id: int):
+    """Delete a story and all related data."""
+    db = get_db()
+    db["conversations"].delete_where("story_id = ?", [story_id])
+    db["questionnaire_responses"].delete_where("story_id = ?", [story_id])
+    db["story_tags"].delete_where("story_id = ?", [story_id])
+    db["custom_chapters"].delete_where("story_id = ?", [story_id])
+    db["stories"].delete(story_id)
+
+
+def rename_conversation(conversation_id: int, title: str):
+    db = get_db()
+    db["conversations"].update(conversation_id, {"title": title})
+
+
+def delete_conversation(conversation_id: int):
+    """Delete a single conversation session."""
+    db = get_db()
+    db["conversations"].delete(conversation_id)
+
+
 def get_or_create_story(person_id: int, title: str) -> int:
     """Get the first story for a person, or create one."""
     db = get_db()
@@ -311,28 +354,89 @@ def save_or_update_response(story_id: int, question: str, answer: str):
 
 # --- Conversation operations ---
 
-def get_conversation(story_id: int, chapter_index: int) -> dict | None:
-    db = get_db()
-    rows = list(db["conversations"].rows_where(
-        "story_id = ? AND chapter_index = ?", [story_id, chapter_index]
-    ))
-    if not rows:
-        return None
-    row = rows[0]
+def _parse_conversation_row(row: dict) -> dict:
     row["messages"] = json.loads(row["messages"]) if row["messages"] else []
     row["extracted_answers"] = json.loads(row["extracted_answers"]) if row["extracted_answers"] else {}
     return row
 
 
+def get_conversation(story_id: int, chapter_index: int) -> dict | None:
+    """Get the latest conversation session for a chapter."""
+    db = get_db()
+    rows = list(db["conversations"].rows_where(
+        "story_id = ? AND chapter_index = ?", [story_id, chapter_index],
+        order_by="-id", limit=1,
+    ))
+    if not rows:
+        return None
+    return _parse_conversation_row(rows[0])
+
+
+def get_conversation_by_id(conversation_id: int) -> dict | None:
+    db = get_db()
+    try:
+        row = db["conversations"].get(conversation_id)
+        return _parse_conversation_row(row)
+    except sqlite_utils.db.NotFoundError:
+        return None
+
+
+def get_chapter_conversations(story_id: int, chapter_index: int) -> list[dict]:
+    """Get all conversation sessions for a chapter, ordered oldest first."""
+    db = get_db()
+    rows = list(db["conversations"].rows_where(
+        "story_id = ? AND chapter_index = ?", [story_id, chapter_index],
+        order_by="id",
+    ))
+    return [_parse_conversation_row(row) for row in rows]
+
+
 def get_all_conversations(story_id: int) -> list[dict]:
     db = get_db()
     rows = list(db["conversations"].rows_where(
-        "story_id = ?", [story_id], order_by="chapter_index"
+        "story_id = ?", [story_id], order_by="chapter_index, id"
     ))
-    for row in rows:
-        row["messages"] = json.loads(row["messages"]) if row["messages"] else []
-        row["extracted_answers"] = json.loads(row["extracted_answers"]) if row["extracted_answers"] else {}
-    return rows
+    return [_parse_conversation_row(row) for row in rows]
+
+
+def create_conversation(
+    story_id: int,
+    chapter_index: int,
+    messages: list[dict] | None = None,
+    extracted_answers: dict | None = None,
+    status: str = "in_progress",
+    custom_chapter_id: int | None = None,
+) -> int:
+    """Always creates a new conversation session."""
+    db = get_db()
+    now = _now()
+    row: dict = {
+        "story_id": story_id,
+        "chapter_index": chapter_index,
+        "messages": json.dumps(messages or []),
+        "extracted_answers": json.dumps(extracted_answers or {}),
+        "status": status,
+        "created_at": now,
+        "updated_at": now,
+    }
+    if custom_chapter_id is not None:
+        row["custom_chapter_id"] = custom_chapter_id
+    return db["conversations"].insert(row).last_pk
+
+
+def update_conversation(
+    conversation_id: int,
+    messages: list[dict],
+    extracted_answers: dict,
+    status: str = "in_progress",
+):
+    db = get_db()
+    db["conversations"].update(conversation_id, {
+        "messages": json.dumps(messages),
+        "extracted_answers": json.dumps(extracted_answers),
+        "status": status,
+        "updated_at": _now(),
+    })
 
 
 def save_conversation(
@@ -342,26 +446,48 @@ def save_conversation(
     extracted_answers: dict,
     status: str = "in_progress",
 ) -> int:
+    """Legacy upsert — updates latest session or creates first one."""
     db = get_db()
-    now = _now()
     existing = list(db["conversations"].rows_where(
-        "story_id = ? AND chapter_index = ?", [story_id, chapter_index]
+        "story_id = ? AND chapter_index = ?", [story_id, chapter_index],
+        order_by="-id", limit=1,
     ))
     if existing:
-        db["conversations"].update(existing[0]["id"], {
-            "messages": json.dumps(messages),
-            "extracted_answers": json.dumps(extracted_answers),
-            "status": status,
-            "updated_at": now,
-        })
+        update_conversation(existing[0]["id"], messages, extracted_answers, status)
         return existing[0]["id"]
     else:
-        return db["conversations"].insert({
-            "story_id": story_id,
-            "chapter_index": chapter_index,
-            "messages": json.dumps(messages),
-            "extracted_answers": json.dumps(extracted_answers),
-            "status": status,
-            "created_at": now,
-            "updated_at": now,
-        }).last_pk
+        return create_conversation(story_id, chapter_index, messages, extracted_answers, status)
+
+
+# --- Custom chapter operations ---
+
+def get_custom_chapters(story_id: int) -> list[dict]:
+    db = get_db()
+    return list(db["custom_chapters"].rows_where(
+        "story_id = ?", [story_id], order_by="sort_order, id"
+    ))
+
+
+def create_custom_chapter(story_id: int, title: str) -> dict:
+    db = get_db()
+    existing = list(db["custom_chapters"].rows_where("story_id = ?", [story_id]))
+    sort_order = max((c["sort_order"] for c in existing), default=-1) + 1
+    row_id = db["custom_chapters"].insert({
+        "story_id": story_id,
+        "title": title,
+        "sort_order": sort_order,
+        "created_at": _now(),
+    }).last_pk
+    return db["custom_chapters"].get(row_id)
+
+
+def update_custom_chapter(chapter_id: int, title: str):
+    db = get_db()
+    db["custom_chapters"].update(chapter_id, {"title": title})
+
+
+def delete_custom_chapter(chapter_id: int):
+    db = get_db()
+    # Delete conversations linked to this custom chapter via the explicit FK column
+    db["conversations"].delete_where("custom_chapter_id = ?", [chapter_id])
+    db["custom_chapters"].delete(chapter_id)
