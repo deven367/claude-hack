@@ -4,8 +4,9 @@ import { getLanguageInfo } from '../data/translations'
 import { getAllLocalStories, ensureShelves, removeFromStoryList } from '../utils/storage'
 import { api } from '../utils/api'
 import { useLanguage } from '../contexts/LanguageContext'
+import SharePanel from './SharePanel'
 
-function BookItem({ story, colorIndex, onRead, onWrite, onDelete, t }) {
+function BookItem({ story, colorIndex, onRead, onWrite, onDelete, onShare, t }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const c = BOOK_COLORS[colorIndex % BOOK_COLORS.length]
@@ -75,12 +76,19 @@ function BookItem({ story, colorIndex, onRead, onWrite, onDelete, t }) {
         <button className="library-action-btn library-action-write" onClick={() => onWrite(story)} title="Continue writing">
           {'\u270E'}
         </button>
+        <button
+          className="library-action-btn library-action-share"
+          onClick={() => onShare(story)}
+          title="Share story"
+        >
+          {'\u2197'}
+        </button>
       </div>
     </div>
   )
 }
 
-function PersonShelf({ personName, books, allStories, onRead, onWrite, onDelete, t }) {
+function PersonShelf({ personName, books, allStories, onRead, onWrite, onDelete, onShare, t }) {
   if (books.length === 0) return null
 
   return (
@@ -99,6 +107,7 @@ function PersonShelf({ personName, books, allStories, onRead, onWrite, onDelete,
             onRead={onRead}
             onWrite={onWrite}
             onDelete={onDelete}
+            onShare={onShare}
             t={t}
           />
         ))}
@@ -184,6 +193,7 @@ function NewBookCard({ color, title, subtitle, onStart, active, onActivate, onDe
 export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContinue, onOpenReader }) {
   const [activeBook, setActiveBook] = useState(null)
   const [, forceUpdate] = useState(0)
+  const [shareStory, setShareStory] = useState(null)
   const { t } = useLanguage()
   const stories = getAllLocalStories()
   ensureShelves()
@@ -212,6 +222,10 @@ export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContin
 
   const handleWrite = (story) => {
     onContinue(story.personId, story.storyId)
+  }
+
+  const handleShare = (story) => {
+    setShareStory(story)
   }
 
   // Split the welcome subtitle on \n for line breaks
@@ -266,10 +280,15 @@ export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContin
               onRead={handleRead}
               onWrite={handleWrite}
               onDelete={handleDelete}
+              onShare={handleShare}
               t={t}
             />
           ))}
         </div>
+      )}
+
+      {shareStory && (
+        <SharePanel story={shareStory} onClose={() => setShareStory(null)} />
       )}
     </div>
   )
