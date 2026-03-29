@@ -232,7 +232,7 @@ export default function ReaderScreen({ personId, storyId, personName, isFreeform
       } else if (isFreeform) {
         const story = await api('GET', `/api/stories/${storyId}`)
         const title = story.title || `${personName}'s Story`
-        coverPage = { type: 'cover', personName, customTitle: title }
+        coverPage = { type: 'cover', personName, customTitle: esc(title) }
         contentBlocks = freeformToBlocks(story.content || '')
       } else {
         coverPage = { type: 'cover', personName }

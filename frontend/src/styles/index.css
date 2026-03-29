@@ -1123,7 +1123,6 @@ body::after {
 }
 
 .library-action-btn {
-  font-size: 1rem;
   font-family: var(--font-body);
   font-size: 0.78rem;
   padding: 0.3rem 0.65rem;

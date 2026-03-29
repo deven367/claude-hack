@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react'
 import { api } from './utils/api'
 import { saveToLocal, addToStoryList, ensureShelves, getAllLocalStories } from './utils/storage'
-import Particles from './components/Particles'
 import WelcomeScreen from './components/WelcomeScreen'
 import ChatScreen from './components/ChatScreen'
 import ReaderScreen from './components/ReaderScreen'

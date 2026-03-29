@@ -76,7 +76,7 @@ A simple, warm interface for capturing life stories through conversational AI in
 - Custom chapters for freeform stories: create, rename (double-click), delete
 - Story sessions: rename (double-click), delete with confirmation
 - Non-first stories in guided chapters get open-ended prompts (not guided questions)
-- PRs: #25
+- PRs: #26, #27, #28
 
 ## Backlog
 

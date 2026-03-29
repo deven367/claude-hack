@@ -20,11 +20,13 @@ function BookItem({ story, colorIndex, onRead, onWrite, onDelete }) {
         <span className="library-book-ornament" style={{ color: c.text }}>
           {isFreeform ? '\u{1F4DC}' : '\u2726'}
         </span>
-        <span
-          className="library-book-title"
-          style={{ color: c.text }}
-          dangerouslySetInnerHTML={{ __html: story.storyTitle ? story.storyTitle : (story.type === 'freeform' ? `${story.personName}\u2019s<br>Story` : `${story.personName}\u2019s<br>Life Storybook`) }}
-        />
+        <span className="library-book-title" style={{ color: c.text }}>
+          {story.storyTitle
+            ? story.storyTitle
+            : isFreeform
+              ? <>{story.personName}{'\u2019'}s<br />Story</>
+              : <>{story.personName}{'\u2019'}s<br />Life Storybook</>}
+        </span>
         <div className="library-book-divider" style={{ background: c.text }} />
         <span className="library-book-ornament" style={{ color: c.text }}>{'\u00B7 \u00B7 \u00B7'}</span>
       </div>
@@ -138,7 +140,7 @@ function NewBookCard({ color, title, subtitle, onStart, active, onActivate, onDe
         {/* Front face */}
         <div className="new-book-front">
           <span className="new-book-ornament" style={{ color: color.text }}>{'\u2726'}</span>
-          <span className="new-book-title" style={{ color: color.text }} dangerouslySetInnerHTML={{ __html: title }} />
+          <span className="new-book-title" style={{ color: color.text }}>{title}</span>
           <div className="new-book-divider" style={{ background: color.text }} />
           <span className="new-book-subtitle" style={{ color: color.text }}>{subtitle}</span>
         </div>
@@ -220,7 +222,7 @@ export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContin
       <div className="welcome-books">
         <NewBookCard
           color={BOOK_COLORS[0]}
-          title={'New Life<br>Storybook'}
+          title={<>New Life<br />Storybook</>}
           subtitle="Guided chapters"
           active={activeBook === 'guided'}
           onActivate={() => setActiveBook('guided')}
@@ -229,7 +231,7 @@ export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContin
         />
         <NewBookCard
           color={BOOK_COLORS[1]}
-          title={'New<br>Story'}
+          title={<>New<br />Story</>}
           subtitle="Tell it your way"
           active={activeBook === 'freeform'}
           onActivate={() => setActiveBook('freeform')}

@@ -198,7 +198,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
       ])
       setPhase('idle')
     }
-  }, [storyId, currentChapter, conversationId, personName, playTTS])
+  }, [storyId, currentChapter, conversationId, personName, freeform, currentCustomChapter?.title, muted, playTTS])
 
   const toggleRecording = useCallback(async () => {
     if (recording) {
