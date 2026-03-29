@@ -5,11 +5,22 @@ import os
 import sys
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
-
 # Ensure the backend directory is on sys.path so 'storyteller' is importable
 # (needed for Vercel where the working directory may not be backend/)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+logger = logging.getLogger(__name__)
+
+from flask import Flask, jsonify, request, Response
+
+from storyteller import db
+from storyteller import conversation
+from storyteller import tts
+from storyteller import share as share_module
+
+app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload limit
+db.init_db()
 
 # Load .env file from project root (no dependencies needed)
 _env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -40,17 +51,6 @@ if _env_path.exists():
         if not key or not value:
             continue
         os.environ.setdefault(key, value)
-
-from flask import Flask, jsonify, request, Response
-
-from storyteller import db
-from storyteller import conversation
-from storyteller import tts
-from storyteller import share as share_module
-
-app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload limit
-db.init_db()
 
 
 def _is_allowed_origin(origin: str) -> bool:
@@ -257,7 +257,9 @@ def chat():
     message = data.get("message", "").strip()
     person_name = data.get("person_name", "Friend")
     custom_chapter_title = data.get("custom_chapter_title")  # set for freeform stories
-    custom_chapter_id = data.get("custom_chapter_id")  # PK of custom_chapters row, if applicable
+    custom_chapter_id = data.get(
+        "custom_chapter_id"
+    )  # PK of custom_chapters row, if applicable
     language = data.get("language", "en")  # UI language for multilingual support
 
     if story_id is None or chapter_index is None:
@@ -308,7 +310,13 @@ def chat():
 
     # If no messages yet, generate opening message from AI
     if not messages and not message:
-        opening = conversation.get_opening_message(chapter_index, person_name, prior_context=prior_stories, custom_chapter_title=effective_custom_title, language=language)
+        opening = conversation.get_opening_message(
+            chapter_index,
+            person_name,
+            prior_context=prior_stories,
+            custom_chapter_title=effective_custom_title,
+            language=language,
+        )
         messages = [{"role": "assistant", "content": opening, "timestamp": ""}]
         if conv_id:
             db.update_conversation(conv_id, messages, extracted)
@@ -335,7 +343,13 @@ def chat():
 
     # Get AI response
     ai_response, updated_messages = conversation.chat(
-        person_name, chapter_index, messages, message, prior_context=prior_stories, custom_chapter_title=effective_custom_title, language=language,
+        person_name,
+        chapter_index,
+        messages,
+        message,
+        prior_context=prior_stories,
+        custom_chapter_title=effective_custom_title,
+        language=language,
     )
 
     # Extract answers from the updated conversation
@@ -344,23 +358,27 @@ def chat():
 
     # Save to DB
     chapter_info = conversation.get_chapter_info(chapter_index)
-    try:
-        if conv_id:
-            db.update_conversation(conv_id, updated_messages, extracted)
-        else:
-            conv_id = db.create_conversation(story_id, chapter_index, updated_messages, extracted, custom_chapter_id=custom_chapter_id)
-    except ValueError:
-        # Conversation was deleted mid-flight — create a fresh one
-        conv_id = db.create_conversation(story_id, chapter_index, updated_messages, extracted, custom_chapter_id=custom_chapter_id)
+    if conv_id:
+        db.update_conversation(conv_id, updated_messages, extracted)
+    else:
+        conv_id = db.create_conversation(
+            story_id,
+            chapter_index,
+            updated_messages,
+            extracted,
+            custom_chapter_id=custom_chapter_id,
+        )
 
-    return jsonify({
-        "ai_message": ai_response,
-        "messages": updated_messages,
-        "extracted_answers": extracted,
-        "chapter_info": chapter_info,
-        "conversation_id": conv_id,
-        "status": "in_progress",
-    })
+    return jsonify(
+        {
+            "ai_message": ai_response,
+            "messages": updated_messages,
+            "extracted_answers": extracted,
+            "chapter_info": chapter_info,
+            "conversation_id": conv_id,
+            "status": "in_progress",
+        }
+    )
 
 
 @app.route("/api/conversations/<int:story_id>/<chapter_index>/new", methods=["POST"])
@@ -387,7 +405,13 @@ def new_conversation_session(story_id, chapter_index):
         if chapter_info:
             effective_custom_title = chapter_info.get("title")
 
-    opening = conversation.get_opening_message(chapter_index, person_name, prior_context=prior_stories, custom_chapter_title=effective_custom_title, language=language)
+    opening = conversation.get_opening_message(
+        chapter_index,
+        person_name,
+        prior_context=prior_stories,
+        custom_chapter_title=effective_custom_title,
+        language=language,
+    )
     messages = [{"role": "assistant", "content": opening, "timestamp": ""}]
     conv_id = db.create_conversation(
         story_id, chapter_index, messages, {}, custom_chapter_id=custom_chapter_id
@@ -518,16 +542,19 @@ def text_to_speech():
 
 # --- Share / Export endpoints ---
 
+
 def _collect_conversations(story_id: int) -> list[dict]:
     """Return all conversations for a story, enriched with chapter title."""
     convs = db.get_all_conversations(story_id)
     result = []
     for conv in convs:
         chapter_info = conversation.get_chapter_info(conv["chapter_index"])
-        result.append({
-            **conv,
-            "chapter_title": chapter_info.get("title") if chapter_info else None,
-        })
+        result.append(
+            {
+                **conv,
+                "chapter_title": chapter_info.get("title") if chapter_info else None,
+            }
+        )
     return result
 
 
@@ -568,7 +595,9 @@ def download_audiobook(story_id):
     return Response(
         mp3_bytes,
         mimetype="audio/mpeg",
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}_Story.mp3"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}_Story.mp3"'
+        },
     )
 
 
@@ -585,10 +614,14 @@ def download_reel(story_id):
     person_name = story.get("person_name") or "Unknown"
     data = request.json or {}
     voice_id = data.get("voice_id") or None
-    summary = data.get("summary") or share_module.generate_summary(convs, person_name)
+    summary = (
+        data.get("summary") or share_module.generate_summary(convs, person_name)
+    )
 
     try:
-        audio_bytes = share_module.synthesize_summary(summary, person_name, voice_id=voice_id)
+        audio_bytes = share_module.synthesize_summary(
+            summary, person_name, voice_id=voice_id
+        )
         video_bytes = share_module.generate_reel(summary, audio_bytes, person_name)
     except (tts.TTSError, Exception) as e:
         logger.error("Reel generation failed: %s", e)
@@ -598,7 +631,9 @@ def download_reel(story_id):
     return Response(
         video_bytes,
         mimetype="video/mp4",
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}_Reel.mp4"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}_Reel.mp4"'
+        },
     )
 
 
