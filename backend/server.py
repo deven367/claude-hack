@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 # (needed for Vercel where the working directory may not be backend/)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+logger = logging.getLogger(__name__)
+
 from flask import Flask, jsonify, request, Response
 
 from storyteller import db
@@ -542,16 +544,19 @@ def text_to_speech():
 
 # --- Share / Export endpoints ---
 
+
 def _collect_conversations(story_id: int) -> list[dict]:
     """Return all conversations for a story, enriched with chapter title."""
     convs = db.get_all_conversations(story_id)
     result = []
     for conv in convs:
         chapter_info = conversation.get_chapter_info(conv["chapter_index"])
-        result.append({
-            **conv,
-            "chapter_title": chapter_info.get("title") if chapter_info else None,
-        })
+        result.append(
+            {
+                **conv,
+                "chapter_title": chapter_info.get("title") if chapter_info else None,
+            }
+        )
     return result
 
 
@@ -592,7 +597,9 @@ def download_audiobook(story_id):
     return Response(
         mp3_bytes,
         mimetype="audio/mpeg",
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}_Story.mp3"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}_Story.mp3"'
+        },
     )
 
 
@@ -609,10 +616,14 @@ def download_reel(story_id):
     person_name = story.get("person_name") or "Unknown"
     data = request.json or {}
     voice_id = data.get("voice_id") or None
-    summary = data.get("summary") or share_module.generate_summary(convs, person_name)
+    summary = (
+        data.get("summary") or share_module.generate_summary(convs, person_name)
+    )
 
     try:
-        audio_bytes = share_module.synthesize_summary(summary, person_name, voice_id=voice_id)
+        audio_bytes = share_module.synthesize_summary(
+            summary, person_name, voice_id=voice_id
+        )
         video_bytes = share_module.generate_reel(summary, audio_bytes, person_name)
     except (tts.TTSError, Exception) as e:
         logger.error("Reel generation failed: %s", e)
@@ -622,7 +633,9 @@ def download_reel(story_id):
     return Response(
         video_bytes,
         mimetype="video/mp4",
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}_Reel.mp4"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}_Reel.mp4"'
+        },
     )
 
 
