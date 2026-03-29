@@ -1,7 +1,7 @@
 .PHONY: setup-backend setup-frontend setup start-backend start-frontend test-backend
 
 setup-backend:
-	cd backend && uv sync --extra dev
+	cd backend && uv sync --extra dev --extra openai
 
 setup-frontend:
 	cd frontend && npm install
