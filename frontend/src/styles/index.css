@@ -3048,12 +3048,12 @@ body::after {
     font-size: 1.2rem;
   }
 
-  .story-mic-btn {
+  .story-rec-btn {
     width: 90px;
     height: 90px;
   }
 
-  .story-mic-icon {
+  .story-rec-mic {
     font-size: 2.2rem;
   }
 }
