@@ -201,18 +201,22 @@ export default function ReaderScreen({ personId, storyId, personName, isFreeform
         })
       }
 
-      // Handle freeform stories (chapter_index = -1)
-      if (isFreeform && chapterData[-1]) {
-        const freeformSessions = chapterData[-1]
+      // Handle freeform stories — custom chapters are stored under their DB id (1, 2, …), not -1
+      const freeformSessionsAll = isFreeform
+        ? Object.keys(chapterData)
+            .sort((a, b) => Number(a) - Number(b))
+            .flatMap(idx => chapterData[idx])
+        : []
+
+      if (isFreeform && freeformSessionsAll.length > 0) {
         let storyTitle = null
-        for (const session of freeformSessions) {
+        for (const session of freeformSessionsAll) {
           if (session.extracted_answers?.title) { storyTitle = session.extracted_answers.title; break }
         }
         const safeStoryTitle = storyTitle ? esc(storyTitle) : null
         coverPage = { type: 'cover', personName, customTitle: safeStoryTitle || `${personName}'s Story` }
-        // Render freeform as transcript too
         const blocks = []
-        freeformSessions.forEach(session => {
+        freeformSessionsAll.forEach(session => {
           if (!session.messages) return
           session.messages.forEach(msg => {
             if (msg.role === 'assistant') {
