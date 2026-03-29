@@ -2,13 +2,14 @@
 
 import json
 import logging
+import random
 from datetime import datetime, timezone
 
 import llm
 
 logger = logging.getLogger(__name__)
 
-MODEL_ID = "claude-opus-4.6"
+MODEL_ID = "anthropic/claude-sonnet-4-6"
 
 # Chapter data mirrored from frontend — questions the AI should cover per chapter.
 CHAPTERS = [
@@ -295,42 +296,47 @@ def get_opening_message(
     custom_chapter_title: str | None = None,
 ) -> str:
     """Generate the AI's opening message for a new chapter conversation."""
-    model = llm.get_model(MODEL_ID)
-
     has_prior = prior_context and len(prior_context) > 0
 
-    # Freeform / custom chapter
+    # --- Fast paths: skip LLM call, return pre-written openers ---
+
+    # First guided chapter, first time — instant start
+    if chapter_index == 0 and not has_prior and custom_chapter_title is None:
+        return f"So {person_name}, let\u2019s start at the very beginning \u2014 when and where were you born?"
+
+    # Freeform / custom chapter / open-ended stories
     if custom_chapter_title is not None or chapter_index == -1:
-        title = custom_chapter_title or "their story"
         if has_prior:
-            system = f"""You're having a conversation with {person_name} about "{title}". They've talked about this before and are back to share more.
-
-Write ONE short sentence welcoming them back. Don't summarize. Keep it simple."""
+            return random.choice([
+                f"Welcome back, {person_name}. What else would you like to share?",
+                f"Good to have you back, {person_name}. Got another story for me?",
+                f"Hey {person_name}, ready to pick up where we left off?",
+                f"Back for more, {person_name}? I\u2019m all ears.",
+                f"Welcome back. What\u2019s on your mind today, {person_name}?",
+            ])
         else:
-            system = f"""You're having a conversation with {person_name}. They want to tell a story about "{title}".
+            return random.choice([
+                f"So {person_name}, what story would you like to share?",
+                f"Alright {person_name}, what\u2019s on your mind? Tell me anything.",
+                f"I\u2019m listening, {person_name}. What would you like to talk about?",
+                f"What\u2019s a story you\u2019ve been wanting to tell, {person_name}?",
+                f"Go ahead, {person_name} \u2014 what comes to mind?",
+                f"So {person_name}, what\u2019s something you\u2019d like to remember?",
+            ])
 
-Write ONE short, inviting sentence to get started. Something like "So, tell me about it." or "What comes to mind?" Keep it simple and direct. Don't ask a specific question — let them lead."""
-        response = model.prompt("Begin the conversation.", system=system)
-        return response.text().strip()
-
-    chapter = CHAPTERS[chapter_index]
-
-    # Build a summary of what this chapter covers vs other chapters
-    questions_summary = ", ".join(q["text"].lower().rstrip("?") for q in chapter["questions"][:3])
-
+    # Guided chapter with prior stories (additional story in same chapter)
     if has_prior:
-        system = f"""You're having a conversation with {person_name} about their life, specifically "{chapter['title']}". They've talked about this before and are back to share more.
+        return random.choice([
+            f"Welcome back, {person_name}. Got another story from this chapter?",
+            f"Hey {person_name}, good to pick this up again. What else comes to mind?",
+            f"Back for more, {person_name}? What else would you like to share about this?",
+            f"Alright {person_name}, what else do you remember?",
+        ])
 
-Write ONE short sentence welcoming them back. Something like "Hey, welcome back." or "Good to pick this up again." Don't be flowery. Don't summarize. Don't ask a question yet."""
-    else:
-        system = f"""You're having a conversation with {person_name} about their life. You're starting on "{chapter['title']}" — {chapter['subtitle']}.
-
-This chapter is specifically about: {questions_summary}. Stay on THIS chapter's topic — don't ask about things covered in other chapters.
-
-Write ONE short, simple sentence to get started. Something plain and direct that fits this specific chapter topic. Not dramatic, not poetic, not a paragraph. One sentence, no more."""
-
-    response = model.prompt("Begin the conversation.", system=system)
-    return response.text().strip()
+    # Guided chapter, first time (chapters 1+) — use the chapter's first question
+    chapter = CHAPTERS[chapter_index]
+    first_q = chapter["questions"][0]["text"]
+    return f"{person_name}, {first_q.lower()}" if first_q[0].isupper() else f"{person_name}, {first_q}"
 
 
 def chat(
