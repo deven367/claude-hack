@@ -11,8 +11,6 @@ logger = logging.getLogger(__name__)
 # (needed for Vercel where the working directory may not be backend/)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-logger = logging.getLogger(__name__)
-
 from flask import Flask, jsonify, request, Response
 
 from storyteller import db
