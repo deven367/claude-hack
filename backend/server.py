@@ -1,7 +1,13 @@
 """Share Your Story - Flask server with REST API."""
 
 import os
+import sys
 from pathlib import Path
+
+# Ensure the backend directory is on sys.path so 'storyteller' is importable
+# (needed for Vercel where the working directory may not be backend/)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from flask import Flask, jsonify, request, Response
 
 from storyteller import db
