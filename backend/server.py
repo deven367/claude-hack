@@ -280,9 +280,13 @@ def chat():
 
     # Save to DB
     chapter_info = conversation.get_chapter_info(chapter_index)
-    if conv_id:
-        db.update_conversation(conv_id, updated_messages, extracted)
-    else:
+    try:
+        if conv_id:
+            db.update_conversation(conv_id, updated_messages, extracted)
+        else:
+            conv_id = db.create_conversation(story_id, chapter_index, updated_messages, extracted, custom_chapter_id=custom_chapter_id)
+    except ValueError:
+        # Conversation was deleted mid-flight — create a fresh one
         conv_id = db.create_conversation(story_id, chapter_index, updated_messages, extracted, custom_chapter_id=custom_chapter_id)
 
     return jsonify({

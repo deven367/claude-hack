@@ -431,12 +431,15 @@ def update_conversation(
     status: str = "in_progress",
 ):
     db = get_db()
-    db["conversations"].update(conversation_id, {
-        "messages": json.dumps(messages),
-        "extracted_answers": json.dumps(extracted_answers),
-        "status": status,
-        "updated_at": _now(),
-    })
+    try:
+        db["conversations"].update(conversation_id, {
+            "messages": json.dumps(messages),
+            "extracted_answers": json.dumps(extracted_answers),
+            "status": status,
+            "updated_at": _now(),
+        })
+    except sqlite_utils.db.NotFoundError:
+        raise ValueError(f"Conversation {conversation_id} not found — it may have been deleted.")
 
 
 def save_conversation(
@@ -478,7 +481,10 @@ def create_custom_chapter(story_id: int, title: str) -> dict:
         "sort_order": sort_order,
         "created_at": _now(),
     }).last_pk
-    return db["custom_chapters"].get(row_id)
+    try:
+        return db["custom_chapters"].get(row_id)
+    except sqlite_utils.db.NotFoundError:
+        return {"id": row_id, "story_id": story_id, "title": title, "sort_order": sort_order}
 
 
 def update_custom_chapter(chapter_id: int, title: str):
