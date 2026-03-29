@@ -1,7 +1,6 @@
 """Share Your Story - Flask server with REST API."""
 
 import os
-import tempfile
 from pathlib import Path
 
 # Load .env file from project root (no dependencies needed)
