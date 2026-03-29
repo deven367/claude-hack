@@ -54,22 +54,24 @@ export default function App() {
 
     addToStoryList({ personId, storyId, personName: name, type: 'freeform', storyTitle: null })
 
-    setComposeProps({ personId, storyId, personName: name })
-    setScreen('compose')
+    setChatProps({ personName: name, storyId, freeform: true })
+    setScreen('chat')
   }, [])
 
   const handleContinue = useCallback(async (personId, storyId) => {
     const stories = getAllLocalStories()
     const entry = stories.find(s => s.personId === personId)
     const personName = entry?.personName || 'You'
+    const isFreeform = entry?.type === 'freeform'
 
-    setChatProps({ personName, storyId, initialChapter: 0 })
+    setChatProps({ personName, storyId, initialChapter: 0, freeform: isFreeform })
     setScreen('chat')
   }, [])
 
   const handleOpenCompose = useCallback((personId, storyId, personName) => {
-    setComposeProps({ personId, storyId, personName })
-    setScreen('compose')
+    // Freeform stories now use conversational chat
+    setChatProps({ personName, storyId, freeform: true })
+    setScreen('chat')
   }, [])
 
   const handleOpenReader = useCallback((personId, storyId, personName, isFreeform) => {

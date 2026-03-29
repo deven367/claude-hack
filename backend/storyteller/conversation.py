@@ -149,12 +149,48 @@ CHAPTERS = [
 ]
 
 
+def _build_freeform_system_prompt(person_name: str, extracted_answers: dict) -> str:
+    bonus_stories = {k: v for k, v in extracted_answers.items() if k.startswith("_")}
+
+    prompt = f"""You are having a conversation with {person_name}. They want to tell a story — it could be about anything. Your job is to listen and help them tell it well.
+
+This is completely open-ended. No topics, no questions, no agenda. Just follow wherever they take it.
+
+How to talk:
+- Sound like a normal person. No flowery language.
+- NEVER use phrases like "That's wonderful!", "What a beautiful memory!", "Thank you for sharing that."
+- Keep responses to 1-2 sentences.
+- If they're telling a story, engage with it. Ask about the people, the details, how they felt. Stay in their story.
+- If they pause, you can ask what happened next, or what that meant to them.
+- Talk like a friend at a kitchen table, not like an interviewer."""
+
+    if bonus_stories:
+        prompt += "\n\nStories shared so far:\n"
+        for key, value in bonus_stories.items():
+            prompt += f"- {value[:200]}\n"
+
+    return prompt
+
+
+def _build_freeform_extraction_prompt() -> str:
+    return """Extract the stories from this conversation. Capture each distinct story, memory, or anecdote as a separate entry. Use keys like "_story_1", "_story_2", etc. Write each as a narrative paragraph in the person's voice, cleaned up for readability.
+
+Also extract a "title" key — a short, natural title for the overall story (3-8 words).
+
+Return ONLY a JSON object. No other text.
+
+Example output: {"title": "The Summer We Built the Treehouse", "_story_1": "It was the summer of '78 and my dad decided we were going to build a treehouse. None of us knew what we were doing.", "_story_2": "My sister fell out of that treehouse three times before we finished it. She still has the scar on her knee."}"""
+
+
 def _build_system_prompt(
     chapter_index: int,
     person_name: str,
     extracted_answers: dict,
     prior_context: list[str] | None = None,
 ) -> str:
+    if chapter_index == -1:
+        return _build_freeform_system_prompt(person_name, extracted_answers)
+
     chapter = CHAPTERS[chapter_index]
     questions = chapter["questions"]
 
@@ -213,6 +249,9 @@ Background topics for this chapter (use ONLY during natural lulls, never interru
 
 
 def _build_extraction_prompt(chapter_index: int) -> str:
+    if chapter_index == -1:
+        return _build_freeform_extraction_prompt()
+
     chapter = CHAPTERS[chapter_index]
     questions = chapter["questions"]
 
@@ -238,6 +277,13 @@ def get_chapter_count() -> int:
 
 
 def get_chapter_info(chapter_index: int) -> dict:
+    if chapter_index == -1:
+        return {
+            "id": "freeform",
+            "title": "Your Story",
+            "subtitle": "Tell it your way",
+            "question_count": 0,
+        }
     if 0 <= chapter_index < len(CHAPTERS):
         ch = CHAPTERS[chapter_index]
         return {
@@ -255,10 +301,18 @@ def get_opening_message(
     prior_context: list[str] | None = None,
 ) -> str:
     """Generate the AI's opening message for a new chapter conversation."""
-    chapter = CHAPTERS[chapter_index]
     model = llm.get_model(MODEL_ID)
 
     has_prior = prior_context and len(prior_context) > 0
+
+    if chapter_index == -1:
+        system = f"""You're having a conversation with {person_name}. They want to tell a story about something in their life.
+
+Write ONE short sentence to get started. Something like "So, what's the story?" or "What do you want to talk about?" Keep it simple and direct."""
+        response = model.prompt("Begin the conversation.", system=system)
+        return response.text().strip()
+
+    chapter = CHAPTERS[chapter_index]
 
     # Build a summary of what this chapter covers vs other chapters
     questions_summary = ", ".join(q["text"].lower().rstrip("?") for q in chapter["questions"][:3])

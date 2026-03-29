@@ -174,27 +174,50 @@ export default function ReaderScreen({ personId, storyId, personName, isFreeform
       let coverPage
       let contentBlocks = []
 
-      if (isFreeform) {
+      // Load all conversations grouped by chapter
+      const conversations = await api('GET', `/api/conversations/${storyId}`)
+      const chapterData = {}
+
+      if (conversations && conversations.length > 0) {
+        for (const conv of conversations) {
+          const chapterConvs = await api('GET', `/api/conversations/${storyId}/${conv.chapter_index}`)
+          if (chapterConvs.sessions && chapterConvs.sessions.length > 0) {
+            chapterData[conv.chapter_index] = chapterConvs.sessions
+              .map(s => s.extracted_answers || {})
+              .filter(ea => Object.keys(ea).length > 0)
+          }
+        }
+      }
+
+      // Handle freeform stories (chapter_index = -1)
+      if (isFreeform && chapterData[-1]) {
+        // Extract title from freeform conversation if available
+        const freeformAnswers = chapterData[-1]
+        let storyTitle = null
+        for (const session of freeformAnswers) {
+          if (session.title) { storyTitle = session.title; break }
+        }
+        coverPage = { type: 'cover', personName, customTitle: storyTitle || `${personName}'s Story` }
+        // Render freeform stories
+        const blocks = []
+        freeformAnswers.forEach(session => {
+          Object.entries(session).forEach(([key, value]) => {
+            if (key === 'title') return
+            blocks.push(`
+              <div class="reader-story-entry">
+                <p class="reader-story-text">${esc(value).replace(/\n/g, '<br>')}</p>
+              </div>
+            `)
+          })
+        })
+        contentBlocks = blocks
+      } else if (isFreeform) {
+        // Fallback: try old freeform content
         const story = await api('GET', `/api/stories/${storyId}`)
         const title = story.title || `${personName}'s Story`
         coverPage = { type: 'cover', personName, customTitle: title }
         contentBlocks = freeformToBlocks(story.content || '')
       } else {
-        // Load all conversations grouped by chapter
-        const conversations = await api('GET', `/api/conversations/${storyId}`)
-        const chapterData = {}  // { chapterIndex: [ extracted_answers_1, extracted_answers_2, ... ] }
-
-        if (conversations && conversations.length > 0) {
-          for (const conv of conversations) {
-            const chapterConvs = await api('GET', `/api/conversations/${storyId}/${conv.chapter_index}`)
-            if (chapterConvs.sessions && chapterConvs.sessions.length > 0) {
-              chapterData[conv.chapter_index] = chapterConvs.sessions
-                .map(s => s.extracted_answers || {})
-                .filter(ea => Object.keys(ea).length > 0)
-            }
-          }
-        }
-
         coverPage = { type: 'cover', personName }
         contentBlocks = guidedToBlocks(chapterData)
       }

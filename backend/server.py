@@ -184,8 +184,9 @@ def chat():
     })
 
 
-@app.route("/api/conversations/<int:story_id>/<int:chapter_index>/new", methods=["POST"])
+@app.route("/api/conversations/<int:story_id>/<chapter_index>/new", methods=["POST"])
 def new_conversation_session(story_id, chapter_index):
+    chapter_index = int(chapter_index)
     """Start a new conversation session within a chapter."""
     data = request.json or {}
     person_name = data.get("person_name", "Friend")
@@ -239,8 +240,9 @@ def get_conversations(story_id):
     return jsonify(result)
 
 
-@app.route("/api/conversations/<int:story_id>/<int:chapter_index>", methods=["GET"])
+@app.route("/api/conversations/<int:story_id>/<chapter_index>", methods=["GET"])
 def get_conversation(story_id, chapter_index):
+    chapter_index = int(chapter_index)
     """Get all conversation sessions for a chapter."""
     sessions = db.get_chapter_conversations(story_id, chapter_index)
     if not sessions:
@@ -278,4 +280,4 @@ def get_conversation(story_id, chapter_index):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)

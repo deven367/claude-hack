@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { CHAPTERS } from '../data/chapters'
 import { api } from '../utils/api'
 
-export default function ChatScreen({ personName, storyId, initialChapter = 0, onGoHome, onOpenReader }) {
-  const [currentChapter, setCurrentChapter] = useState(initialChapter)
+export default function ChatScreen({ personName, storyId, initialChapter = 0, freeform = false, onGoHome, onOpenReader }) {
+  const [currentChapter, setCurrentChapter] = useState(freeform ? -1 : initialChapter)
   const [messages, setMessages] = useState([])
   const [extractedAnswers, setExtractedAnswers] = useState({})
   const [conversationId, setConversationId] = useState(null)
@@ -18,7 +18,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
   const inputRef = useRef(null)
   const chatBodyRef = useRef(null)
 
-  const chapter = CHAPTERS[currentChapter]
+  const chapter = freeform ? null : CHAPTERS[currentChapter]
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -64,8 +64,9 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
     return () => { cancelled = true }
   }, [storyId, currentChapter, personName])
 
-  // Load progress overview for all chapters
+  // Load progress overview for all chapters (guided mode only)
   useEffect(() => {
+    if (freeform) return
     async function loadProgress() {
       const convs = await api('GET', `/api/conversations/${storyId}`)
       const progress = {}
@@ -80,7 +81,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
       setChapterProgress(progress)
     }
     loadProgress()
-  }, [storyId, messages])
+  }, [storyId, messages, freeform])
 
   const handleSend = useCallback(async () => {
     const text = inputValue.trim()
@@ -160,81 +161,92 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
     return 'not_started'
   }
 
-  const storyCount = Object.values(extractedAnswers).filter((_, i, arr) => {
-    const keys = Object.keys(extractedAnswers)
-    return keys[i] && keys[i].startsWith('_')
-  }).length
-  const answerCount = Object.keys(extractedAnswers).filter(k => !k.startsWith('_')).length
+  const accentColor = freeform ? '#7D8F69' : chapter.color
 
   return (
     <div id="chat-screen" className="screen active">
       {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
+      {!freeform && sidebarOpen && (
         <div className="chat-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Chapter sidebar */}
-      <aside className={`chat-sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="chat-sidebar-header">
-          <h3 className="chat-sidebar-title">Chapters</h3>
-          <button className="chat-sidebar-close" onClick={() => setSidebarOpen(false)}>{'\u2715'}</button>
-        </div>
-        <nav className="chat-chapter-list">
-          {CHAPTERS.map((ch, i) => {
-            const status = getChapterStatus(i)
-            const progress = chapterProgress[i]
-            return (
-              <button
-                key={ch.id}
-                className={`chat-chapter-item ${i === currentChapter ? 'active' : ''} ${status}`}
-                onClick={() => switchChapter(i)}
-              >
-                <span className="chat-chapter-icon">{ch.icon}</span>
-                <div className="chat-chapter-meta">
-                  <span className="chat-chapter-name">{ch.title}</span>
-                  <span className="chat-chapter-status">
-                    {status === 'in_progress'
-                      ? `${progress?.sessionCount || 1} ${(progress?.sessionCount || 1) === 1 ? 'story' : 'stories'}`
-                      : 'Not started'}
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </nav>
-      </aside>
+      {/* Chapter sidebar (guided mode only) */}
+      {!freeform && (
+        <aside className={`chat-sidebar ${sidebarOpen ? 'open' : ''}`}>
+          <div className="chat-sidebar-header">
+            <h3 className="chat-sidebar-title">Chapters</h3>
+            <button className="chat-sidebar-close" onClick={() => setSidebarOpen(false)}>{'\u2715'}</button>
+          </div>
+          <nav className="chat-chapter-list">
+            {CHAPTERS.map((ch, i) => {
+              const status = getChapterStatus(i)
+              const progress = chapterProgress[i]
+              return (
+                <button
+                  key={ch.id}
+                  className={`chat-chapter-item ${i === currentChapter ? 'active' : ''} ${status}`}
+                  onClick={() => switchChapter(i)}
+                >
+                  <span className="chat-chapter-icon">{ch.icon}</span>
+                  <div className="chat-chapter-meta">
+                    <span className="chat-chapter-name">{ch.title}</span>
+                    <span className="chat-chapter-status">
+                      {status === 'in_progress'
+                        ? `${progress?.sessionCount || 1} ${(progress?.sessionCount || 1) === 1 ? 'story' : 'stories'}`
+                        : 'Not started'}
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
+          </nav>
+        </aside>
+      )}
 
       {/* Main chat area */}
       <div className="chat-main">
         {/* Header */}
         <header className="chat-header">
           <div className="chat-header-left">
-            <button className="chat-menu-btn" onClick={() => setSidebarOpen(true)} title="Chapters">
-              {'\u2630'}
-            </button>
+            {!freeform && (
+              <button className="chat-menu-btn" onClick={() => setSidebarOpen(true)} title="Chapters">
+                {'\u2630'}
+              </button>
+            )}
             <button className="chat-back-btn" onClick={onGoHome} title="Back to home">{'\u2190'}</button>
           </div>
           <div className="chat-header-center">
-            <span className="chat-header-icon">{chapter.icon}</span>
-            <div>
-              <h2 className="chat-header-title">{chapter.title}</h2>
-              <span className="chat-header-progress">
-                {sessionCount > 1 ? `Story ${sessionCount}` : chapter.subtitle}
-              </span>
-            </div>
+            {freeform ? (
+              <div>
+                <h2 className="chat-header-title">{personName}{'\u2019'}s Story</h2>
+                <span className="chat-header-progress">Tell it your way</span>
+              </div>
+            ) : (
+              <>
+                <span className="chat-header-icon">{chapter.icon}</span>
+                <div>
+                  <h2 className="chat-header-title">{chapter.title}</h2>
+                  <span className="chat-header-progress">
+                    {sessionCount > 1 ? `Story ${sessionCount}` : chapter.subtitle}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
           <div className="chat-header-right">
-            <button
-              className="chat-new-story-btn"
-              onClick={startNewStory}
-              disabled={sending || loading}
-              title="Start a new story in this chapter"
-            >
-              + New Story
-            </button>
+            {!freeform && (
+              <button
+                className="chat-new-story-btn"
+                onClick={startNewStory}
+                disabled={sending || loading}
+                title="Start a new story in this chapter"
+              >
+                + New Story
+              </button>
+            )}
             <button
               className="chat-read-btn"
-              onClick={() => onOpenReader(null, storyId, personName, false)}
+              onClick={() => onOpenReader(null, storyId, personName, freeform)}
               title="Read your book"
             >
               {'\uD83D\uDCD6'}
@@ -246,9 +258,18 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
         <div className="chat-messages" ref={chatBodyRef}>
           {/* Chapter intro card */}
           <div className="chat-chapter-intro">
-            <span className="chat-intro-icon">{chapter.icon}</span>
-            <h3 className="chat-intro-title">{chapter.title}</h3>
-            <p className="chat-intro-subtitle">{chapter.subtitle}</p>
+            {freeform ? (
+              <>
+                <h3 className="chat-intro-title">{personName}{'\u2019'}s Story</h3>
+                <p className="chat-intro-subtitle">Tell whatever comes to mind</p>
+              </>
+            ) : (
+              <>
+                <span className="chat-intro-icon">{chapter.icon}</span>
+                <h3 className="chat-intro-title">{chapter.title}</h3>
+                <p className="chat-intro-subtitle">{chapter.subtitle}</p>
+              </>
+            )}
           </div>
 
           {loading ? (
@@ -308,7 +329,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
               className="chat-send-btn"
               onClick={handleSend}
               disabled={!inputValue.trim() || sending || loading}
-              style={{ background: chapter.color }}
+              style={{ background: accentColor }}
             >
               {'\u2191'}
             </button>
