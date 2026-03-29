@@ -93,26 +93,7 @@ def init_db():
         if_not_exists=True,
     )
 
-    db["conversations"].create(
-        {
-            "id": int,
-            "story_id": int,
-            "chapter_index": int,
-            "title": str,          # optional custom name for this session
-            "messages": str,       # JSON array of {role, content, timestamp}
-            "extracted_answers": str,  # JSON object {question_id: answer_text}
-            "status": str,         # "in_progress" or "completed"
-            "created_at": str,
-            "updated_at": str,
-        },
-        pk="id",
-        foreign_keys=[("story_id", "stories")],
-        if_not_exists=True,
-    )
-    # Add title column if upgrading from older schema
-    if "title" not in {col.name for col in db["conversations"].columns}:
-        db.execute("ALTER TABLE conversations ADD COLUMN title TEXT")
-
+    # custom_chapters must be created before conversations (which has an FK to it)
     db["custom_chapters"].create(
         {
             "id": int,
@@ -125,6 +106,30 @@ def init_db():
         foreign_keys=[("story_id", "stories")],
         if_not_exists=True,
     )
+
+    db["conversations"].create(
+        {
+            "id": int,
+            "story_id": int,
+            "chapter_index": int,
+            "custom_chapter_id": int,  # FK to custom_chapters; NULL for built-in chapters
+            "title": str,          # optional custom name for this session
+            "messages": str,       # JSON array of {role, content, timestamp}
+            "extracted_answers": str,  # JSON object {question_id: answer_text}
+            "status": str,         # "in_progress" or "completed"
+            "created_at": str,
+            "updated_at": str,
+        },
+        pk="id",
+        foreign_keys=[("story_id", "stories"), ("custom_chapter_id", "custom_chapters")],
+        if_not_exists=True,
+    )
+    # Add title column if upgrading from older schema
+    if "title" not in {col.name for col in db["conversations"].columns}:
+        db.execute("ALTER TABLE conversations ADD COLUMN title TEXT")
+    # Add custom_chapter_id column if upgrading from older schema
+    if "custom_chapter_id" not in {col.name for col in db["conversations"].columns}:
+        db.execute("ALTER TABLE conversations ADD COLUMN custom_chapter_id INTEGER REFERENCES custom_chapters(id)")
 
     db["tags"].insert_all(
         [{"name": t} for t in PRESET_TAGS],
@@ -237,11 +242,11 @@ def update_story(story_id: int, title: str, content: str):
 def delete_story(story_id: int):
     """Delete a story and all related data."""
     db = get_db()
-    db.execute("DELETE FROM conversations WHERE story_id = ?", [story_id])
-    db.execute("DELETE FROM questionnaire_responses WHERE story_id = ?", [story_id])
-    db.execute("DELETE FROM story_tags WHERE story_id = ?", [story_id])
-    db.execute("DELETE FROM custom_chapters WHERE story_id = ?", [story_id])
-    db.execute("DELETE FROM stories WHERE id = ?", [story_id])
+    db["conversations"].delete_where("story_id = ?", [story_id])
+    db["questionnaire_responses"].delete_where("story_id = ?", [story_id])
+    db["story_tags"].delete_where("story_id = ?", [story_id])
+    db["custom_chapters"].delete_where("story_id = ?", [story_id])
+    db["stories"].delete(story_id)
 
 
 def rename_conversation(conversation_id: int, title: str):
@@ -252,7 +257,7 @@ def rename_conversation(conversation_id: int, title: str):
 def delete_conversation(conversation_id: int):
     """Delete a single conversation session."""
     db = get_db()
-    db.execute("DELETE FROM conversations WHERE id = ?", [conversation_id])
+    db["conversations"].delete(conversation_id)
 
 
 def get_or_create_story(person_id: int, title: str) -> int:
@@ -400,11 +405,12 @@ def create_conversation(
     messages: list[dict] | None = None,
     extracted_answers: dict | None = None,
     status: str = "in_progress",
+    custom_chapter_id: int | None = None,
 ) -> int:
     """Always creates a new conversation session."""
     db = get_db()
     now = _now()
-    return db["conversations"].insert({
+    row: dict = {
         "story_id": story_id,
         "chapter_index": chapter_index,
         "messages": json.dumps(messages or []),
@@ -412,7 +418,10 @@ def create_conversation(
         "status": status,
         "created_at": now,
         "updated_at": now,
-    }).last_pk
+    }
+    if custom_chapter_id is not None:
+        row["custom_chapter_id"] = custom_chapter_id
+    return db["conversations"].insert(row).last_pk
 
 
 def update_conversation(
@@ -479,10 +488,6 @@ def update_custom_chapter(chapter_id: int, title: str):
 
 def delete_custom_chapter(chapter_id: int):
     db = get_db()
-    # Also delete conversations for this chapter
-    chapter = db["custom_chapters"].get(chapter_id)
-    db.execute(
-        "DELETE FROM conversations WHERE story_id = ? AND chapter_index = ?",
-        [chapter["story_id"], chapter_id],
-    )
-    db.execute("DELETE FROM custom_chapters WHERE id = ?", [chapter_id])
+    # Delete conversations linked to this custom chapter via the explicit FK column
+    db["conversations"].delete_where("custom_chapter_id = ?", [chapter_id])
+    db["custom_chapters"].delete(chapter_id)

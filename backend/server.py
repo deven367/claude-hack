@@ -183,6 +183,7 @@ def chat():
     message = data.get("message", "").strip()
     person_name = data.get("person_name", "Friend")
     custom_chapter_title = data.get("custom_chapter_title")  # set for freeform stories
+    custom_chapter_id = data.get("custom_chapter_id")  # PK of custom_chapters row, if applicable
 
     if story_id is None or chapter_index is None:
         return jsonify({"error": "story_id and chapter_index required"}), 400
@@ -231,7 +232,7 @@ def chat():
         if conv_id:
             db.update_conversation(conv_id, messages, extracted)
         else:
-            conv_id = db.create_conversation(story_id, chapter_index, messages, extracted)
+            conv_id = db.create_conversation(story_id, chapter_index, messages, extracted, custom_chapter_id=custom_chapter_id)
         return jsonify({
             "ai_message": opening,
             "messages": messages,
@@ -257,7 +258,7 @@ def chat():
     if conv_id:
         db.update_conversation(conv_id, updated_messages, extracted)
     else:
-        conv_id = db.create_conversation(story_id, chapter_index, updated_messages, extracted)
+        conv_id = db.create_conversation(story_id, chapter_index, updated_messages, extracted, custom_chapter_id=custom_chapter_id)
 
     return jsonify({
         "ai_message": ai_response,
@@ -276,6 +277,7 @@ def new_conversation_session(story_id, chapter_index):
     data = request.json or {}
     person_name = data.get("person_name", "Friend")
     custom_chapter_title = data.get("custom_chapter_title")
+    custom_chapter_id = data.get("custom_chapter_id")
 
     # Gather context from all existing sessions in this chapter
     prior_stories = []
@@ -293,7 +295,7 @@ def new_conversation_session(story_id, chapter_index):
 
     opening = conversation.get_opening_message(chapter_index, person_name, prior_context=prior_stories, custom_chapter_title=effective_custom_title)
     messages = [{"role": "assistant", "content": opening, "timestamp": ""}]
-    conv_id = db.create_conversation(story_id, chapter_index, messages, {})
+    conv_id = db.create_conversation(story_id, chapter_index, messages, {}, custom_chapter_id=custom_chapter_id)
 
     return jsonify({
         "ai_message": opening,
