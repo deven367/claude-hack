@@ -294,7 +294,7 @@ export default function ReaderScreen({ personId, storyId, personName, isFreeform
                   <span class="reader-toc-icon">${e.icon}</span>
                   <span class="reader-toc-title">${e.title}</span>
                   <span class="reader-toc-dots"></span>
-                  <span class="reader-toc-page">${e.pageIndex}</span>
+                  <span class="reader-toc-page">${e.pageIndex + 1}</span>
                 </button>`
               ).join('')}
             </div>
