@@ -213,13 +213,16 @@ def chat():
                     prior_stories.append(v)
 
     # For guided chapters, treat non-first stories as open-ended
+    # For guided chapters, treat *new* non-first sessions as open-ended
     effective_custom_title = custom_chapter_title
-    if effective_custom_title is None and conv_id:
-        other_sessions = [s for s in all_sessions if s["id"] != conv_id]
-        if other_sessions:
-            chapter_info = conversation.get_chapter_info(chapter_index)
-            if chapter_info:
-                effective_custom_title = chapter_info.get("title")
+    # Only infer open-ended/freeform mode when creating a new conversation,
+    # not when resuming an existing one. If there are already prior sessions
+    # for this chapter, use the chapter title as the custom title for the
+    # new session so it is handled as an open-ended retelling.
+    if effective_custom_title is None and not conv_id and all_sessions:
+        chapter_info = conversation.get_chapter_info(chapter_index)
+        if chapter_info:
+            effective_custom_title = chapter_info.get("title")
 
     # If no messages yet, generate opening message from AI
     if not messages and not message:
