@@ -256,6 +256,7 @@ def chat():
     custom_chapter_id = data.get(
         "custom_chapter_id"
     )  # PK of custom_chapters row, if applicable
+    language = data.get("language", "en")  # UI language for multilingual support
 
     if story_id is None or chapter_index is None:
         return jsonify({"error": "story_id and chapter_index required"}), 400
@@ -310,6 +311,7 @@ def chat():
             person_name,
             prior_context=prior_stories,
             custom_chapter_title=effective_custom_title,
+            language=language,
         )
         messages = [{"role": "assistant", "content": opening, "timestamp": ""}]
         if conv_id:
@@ -343,6 +345,7 @@ def chat():
         message,
         prior_context=prior_stories,
         custom_chapter_title=effective_custom_title,
+        language=language,
     )
 
     # Extract answers from the updated conversation
@@ -382,6 +385,7 @@ def new_conversation_session(story_id, chapter_index):
     person_name = data.get("person_name", "Friend")
     custom_chapter_title = data.get("custom_chapter_title")
     custom_chapter_id = data.get("custom_chapter_id")
+    language = data.get("language", "en")
 
     # Gather context from all existing sessions in this chapter
     prior_stories = []
@@ -402,6 +406,7 @@ def new_conversation_session(story_id, chapter_index):
         person_name,
         prior_context=prior_stories,
         custom_chapter_title=effective_custom_title,
+        language=language,
     )
     messages = [{"role": "assistant", "content": opening, "timestamp": ""}]
     conv_id = db.create_conversation(
