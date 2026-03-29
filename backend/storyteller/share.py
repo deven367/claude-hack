@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -140,7 +138,7 @@ def _render_text_frame(
             (VIDEO_W - padding, VIDEO_H - 80),
             "Share Your Story",
             font=wm_font,
-            fill=(200, 160, 130, 180),
+            fill=(200, 160, 130),
             anchor="rm",
         )
 
@@ -228,26 +226,78 @@ def generate_audiobook(conversations: list[dict], person_name: str, voice_id: st
     return b"".join(audio_parts)
 
 
+def _render_overlay(summary: str, person_name: str, title: str | None = None) -> Image.Image:
+    """Render a transparent RGBA overlay with text for compositing onto the video."""
+    img = Image.new("RGBA", (VIDEO_W, VIDEO_H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    padding = 60
+    text_w = VIDEO_W - padding * 2
+    bar_y = 1340
+    bar_h = 540
+
+    # Semi-transparent dark bar at the bottom
+    bar = Image.new("RGBA", (VIDEO_W, bar_h), (0, 0, 0, 160))
+    img.paste(bar, (0, bar_y), bar)
+
+    title_font = _get_font(56)
+    body_font  = _get_font(36)
+    wm_font    = _get_font(28)
+
+    header = title or f"{person_name}\u2019s Story"
+
+    # Title centred
+    draw.text((VIDEO_W // 2, bar_y + 50), header, font=title_font, fill=(255, 255, 255, 255), anchor="mm")
+
+    # Body wrapped
+    words = summary.split()
+    lines, current = [], ""
+    for word in words:
+        test = (current + " " + word).strip()
+        bbox = draw.textbbox((0, 0), test, font=body_font)
+        if bbox[2] > text_w and current:
+            lines.append(current)
+            current = word
+        else:
+            current = test
+    if current:
+        lines.append(current)
+
+    y = bar_y + 100
+    for line in lines:
+        draw.text((padding, y), line, font=body_font, fill=(240, 240, 240, 230))
+        y += 46
+        if y > bar_y + bar_h - 60:
+            break
+
+    # Watermark
+    draw.text((VIDEO_W - padding, VIDEO_H - 50), "Share Your Story",
+              font=wm_font, fill=(200, 200, 200, 140), anchor="rm")
+
+    return img
+
+
 def generate_reel(
     summary: str,
     audio_bytes: bytes,
     person_name: str,
     title: str | None = None,
     music_path: Path | None = None,
+    bg_video_path: Path | None = None,
 ) -> bytes:
-    """Generate a 9:16 MP4 Reel with gradient background, subtitle text, and narration audio."""
+    """Generate a 9:16 MP4 Reel with background video, Pillow text overlay, and narration audio."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
 
-        # Write audio
+        # Write narration audio
         audio_path = tmp / "narration.mp3"
         audio_path.write_bytes(audio_bytes)
 
-        # Get audio duration
+        # Get narration duration
         dur_result = subprocess.run(
             ["ffprobe", "-v", "error", "-show_entries", "format=duration",
              "-of", "default=noprint_wrappers=1:nokey=1", str(audio_path)],
-            capture_output=True, text=True
+            capture_output=True, text=True,
         )
         try:
             audio_dur = float(dur_result.stdout.strip())
@@ -256,19 +306,16 @@ def generate_reel(
 
         video_dur = min(audio_dur, MAX_DURATION)
 
-        # Render background frame as PNG
-        frame = _render_text_frame(summary, person_name, title=title)
-        frame_path = tmp / "frame.png"
-        frame.save(frame_path)
+        # Render text overlay as transparent PNG via Pillow (no drawtext needed)
+        overlay = _render_overlay(summary, person_name, title=title)
+        overlay_path = tmp / "overlay.png"
+        overlay.save(overlay_path)
 
-        # Optional music file
+        # Mix narration + optional background music
         music_file = music_path or (ASSETS_DIR / "music.mp3")
         has_music = music_file.exists()
 
-        output_path = tmp / "reel.mp4"
-
         if has_music:
-            # Mix narration + music (music ducked under narration)
             mixed_audio = tmp / "mixed.mp3"
             subprocess.run([
                 "ffmpeg", "-y",
@@ -284,21 +331,47 @@ def generate_reel(
         else:
             final_audio = audio_path
 
-        # Build video: still image + audio, trimmed to video_dur
-        subprocess.run([
-            "ffmpeg", "-y",
-            "-loop", "1",
-            "-i", str(frame_path),
-            "-i", str(final_audio),
-            "-c:v", "libx264",
-            "-tune", "stillimage",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-pix_fmt", "yuv420p",
-            "-t", str(video_dur),
-            "-vf", f"scale={VIDEO_W}:{VIDEO_H}",
-            "-shortest",
-            str(output_path),
-        ], check=True, capture_output=True)
+        output_path = tmp / "reel.mp4"
+        bg_video = bg_video_path or (ASSETS_DIR / "background.mp4")
+
+        if bg_video.exists():
+            # Scale/crop bg video to 9:16, overlay the PNG, mix in audio
+            subprocess.run([
+                "ffmpeg", "-y",
+                "-stream_loop", "-1", "-i", str(bg_video),
+                "-i", str(overlay_path),
+                "-i", str(final_audio),
+                "-filter_complex",
+                f"[0:v]scale={VIDEO_W}:{VIDEO_H}:force_original_aspect_ratio=increase,"
+                f"crop={VIDEO_W}:{VIDEO_H}[bg];"
+                f"[bg][1:v]overlay=0:0[v]",
+                "-map", "[v]",
+                "-map", "2:a",
+                "-c:v", "libx264",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-pix_fmt", "yuv420p",
+                "-t", str(video_dur),
+                "-shortest",
+                str(output_path),
+            ], check=True, capture_output=True)
+        else:
+            # Fallback: gradient still frame + overlay
+            frame = _build_gradient(VIDEO_W, VIDEO_H).convert("RGBA")
+            frame.alpha_composite(overlay)
+            frame_path = tmp / "frame.png"
+            frame.convert("RGB").save(frame_path)
+            subprocess.run([
+                "ffmpeg", "-y",
+                "-loop", "1", "-i", str(frame_path),
+                "-i", str(final_audio),
+                "-c:v", "libx264", "-tune", "stillimage",
+                "-c:a", "aac", "-b:a", "192k",
+                "-pix_fmt", "yuv420p",
+                "-t", str(video_dur),
+                "-vf", f"scale={VIDEO_W}:{VIDEO_H}",
+                "-shortest",
+                str(output_path),
+            ], check=True, capture_output=True)
 
         return output_path.read_bytes()
