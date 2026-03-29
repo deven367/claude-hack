@@ -92,7 +92,17 @@ def add_cors_headers(response):
 
 @app.route("/")
 def index():
-    return jsonify({"name": "Share Your Story API", "status": "ok"})
+    status = {"name": "Share Your Story API", "status": "ok"}
+    try:
+        d = db.get_db()
+        tables = d.table_names()
+        status["db"] = "connected"
+        status["db_tables"] = len(tables)
+        status["db_backend"] = "turso" if db.TURSO_DATABASE_URL else "sqlite"
+    except Exception as e:
+        status["db"] = "error"
+        status["db_error"] = str(e)
+    return jsonify(status)
 
 
 @app.route("/api/persons", methods=["GET"])

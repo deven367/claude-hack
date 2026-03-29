@@ -1,12 +1,21 @@
-"""SQLite database layer for Share Your Story, powered by sqlite-utils."""
+"""SQLite database layer for Share Your Story, powered by sqlite-utils.
+
+Uses Turso (libSQL) when TURSO_DATABASE_URL is set, otherwise local SQLite file.
+"""
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
 import sqlite_utils
 
+# Local SQLite fallback path
 DB_PATH = Path(__file__).resolve().parent.parent.parent / "stories.db"
+
+# Turso configuration (set these env vars for production)
+TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL")
+TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
 
 PRESET_TAGS = [
     "childhood",
@@ -33,7 +42,13 @@ PRESET_TAGS = [
 
 
 def get_db() -> sqlite_utils.Database:
-    db = sqlite_utils.Database(DB_PATH)
+    if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
+        import libsql_experimental as libsql
+
+        conn = libsql.connect(TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN)
+        db = sqlite_utils.Database(conn)
+    else:
+        db = sqlite_utils.Database(DB_PATH)
     db.execute("PRAGMA foreign_keys = ON")
     return db
 
