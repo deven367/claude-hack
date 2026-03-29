@@ -1,9 +1,17 @@
 """Share Your Story - Flask server with REST API."""
 
+import tempfile
+from pathlib import Path
+
+import tempfile
+from pathlib import Path
+
 from flask import Flask, render_template, jsonify, request
 
 from storyteller import db
 from storyteller import conversation
+from storyteller.speech import transcribe_audio_file, TranscriptionError
+from storyteller.speech import transcribe_audio_file, TranscriptionError
 
 app = Flask(__name__, template_folder="../frontend")
 db.init_db()
@@ -89,6 +97,27 @@ def update_story(story_id):
         return jsonify({"error": "Title is required"}), 400
     db.update_story(story_id, title, content)
     return jsonify({"status": "ok"})
+
+
+# --- Transcription endpoint ---
+
+@app.route("/api/transcribe", methods=["POST"])
+def transcribe():
+    """Accept audio recorded from the browser mic and return transcribed text."""
+    if "audio" not in request.files:
+        return jsonify({"error": "No audio file provided"}), 400
+    audio_file = request.files["audio"]
+    suffix = Path(audio_file.filename or "recording.webm").suffix or ".webm"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        audio_file.save(tmp.name)
+        tmp_path = Path(tmp.name)
+    try:
+        text = transcribe_audio_file(tmp_path)
+    except TranscriptionError as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    return jsonify({"text": text})
 
 
 # --- Conversation / Chat endpoints ---

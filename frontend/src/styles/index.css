@@ -1681,6 +1681,50 @@ body::after {
   filter: none;
 }
 
+.compose-mic-btn {
+  font-size: 1rem;
+  color: white;
+  background: var(--terracotta);
+  border: none;
+  border-radius: 50%;
+  width: 2.4rem;
+  height: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.compose-mic-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  filter: brightness(1.06);
+}
+
+.compose-mic-btn.recording {
+  background: #c0392b;
+  animation: mic-pulse 1s ease-in-out infinite;
+}
+
+.compose-mic-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(192, 57, 43, 0); }
+}
+
+.compose-mic-error {
+  font-size: 0.78rem;
+  color: #c0392b;
+  align-self: center;
+}
+
 /* Freeform page in reader */
 .reader-freeform-body {
   font-family: var(--font-body);

@@ -8,6 +8,11 @@ export default function ComposeScreen({ personId, storyId, personName, onGoHome,
   const [saveText, setSaveText] = useState('saved \u2713')
   const [saveVisible, setSaveVisible] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [recording, setRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+  const [micError, setMicError] = useState('')
+  const mediaRecorderRef = useRef(null)
+  const chunksRef = useRef([])
   const saveTimerRef = useRef(null)
   const hideTimerRef = useRef(null)
 
@@ -60,6 +65,47 @@ export default function ComposeScreen({ personId, storyId, personName, onGoHome,
     composeSave(title, v)
   }
 
+  const handleMicClick = async () => {
+    setMicError('')
+    if (recording) {
+      mediaRecorderRef.current?.stop()
+      return
+    }
+    let stream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch {
+      setMicError('Microphone access denied.')
+      return
+    }
+    chunksRef.current = []
+    const recorder = new MediaRecorder(stream)
+    mediaRecorderRef.current = recorder
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+    recorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop())
+      setRecording(false)
+      setTranscribing(true)
+      try {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const formData = new FormData()
+        formData.append('audio', blob, 'recording.webm')
+        const res = await fetch('/api/transcribe', { method: 'POST', body: formData })
+        const data = await res.json()
+        if (data.error) { setMicError(data.error); return }
+        const appended = content ? content + ' ' + data.text : data.text
+        setContent(appended)
+        composeSave(title, appended)
+      } catch {
+        setMicError('Transcription failed.')
+      } finally {
+        setTranscribing(false)
+      }
+    }
+    recorder.start()
+    setRecording(true)
+  }
+
   const handleReadFromCompose = async () => {
     if (!content.trim()) return
     const finalTitle = title.trim() || `${personName}'s Story`
@@ -100,6 +146,15 @@ export default function ComposeScreen({ personId, storyId, personName, onGoHome,
           <div className="compose-footer">
             <span className="compose-word-count">{wordCount} word{wordCount !== 1 ? 's' : ''}</span>
             <div className="compose-actions">
+              <button
+                className={`compose-mic-btn${recording ? ' recording' : ''}`}
+                onClick={handleMicClick}
+                disabled={transcribing}
+                title={recording ? 'Stop recording' : transcribing ? 'Transcribing…' : 'Record voice'}
+              >
+                {transcribing ? '…' : recording ? '⏹' : '🎙'}
+              </button>
+              {micError && <span className="compose-mic-error">{micError}</span>}
               <button
                 className="compose-read-btn"
                 disabled={!content.trim()}
