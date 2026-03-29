@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -140,7 +138,7 @@ def _render_text_frame(
             (VIDEO_W - padding, VIDEO_H - 80),
             "Share Your Story",
             font=wm_font,
-            fill=(200, 160, 130, 180),
+            fill=(200, 160, 130),
             anchor="rm",
         )
 
