@@ -4,4 +4,6 @@ llm
 llm-anthropic
 llm-ollama
 llm-whisper-api
+pillow>=12.1.1
+ffmpeg-python>=0.2.0
 sqlite-utils
