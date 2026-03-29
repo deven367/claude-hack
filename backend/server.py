@@ -108,32 +108,52 @@ def chat():
     data = request.json
     story_id = data.get("story_id")
     chapter_index = data.get("chapter_index")
+    conversation_id = data.get("conversation_id")
     message = data.get("message", "").strip()
     person_name = data.get("person_name", "Friend")
 
     if story_id is None or chapter_index is None:
         return jsonify({"error": "story_id and chapter_index required"}), 400
 
-    # Load existing conversation or start fresh
-    conv = db.get_conversation(story_id, chapter_index)
+    # Load specific conversation or latest for chapter
+    conv = None
+    if conversation_id:
+        conv = db.get_conversation_by_id(conversation_id)
+    if not conv:
+        conv = db.get_conversation(story_id, chapter_index)
 
     if conv:
         messages = conv["messages"]
         extracted = conv["extracted_answers"]
+        conv_id = conv["id"]
     else:
         messages = []
         extracted = {}
+        conv_id = None
+
+    # Gather context from previous sessions in this chapter
+    prior_stories = []
+    if conv_id:
+        all_sessions = db.get_chapter_conversations(story_id, chapter_index)
+        for sess in all_sessions:
+            if sess["id"] != conv_id:
+                for k, v in sess["extracted_answers"].items():
+                    prior_stories.append(v)
 
     # If no messages yet, generate opening message from AI
     if not messages and not message:
-        opening = conversation.get_opening_message(chapter_index, person_name)
+        opening = conversation.get_opening_message(chapter_index, person_name, prior_context=prior_stories)
         messages = [{"role": "assistant", "content": opening, "timestamp": ""}]
-        db.save_conversation(story_id, chapter_index, messages, extracted)
+        if conv_id:
+            db.update_conversation(conv_id, messages, extracted)
+        else:
+            conv_id = db.create_conversation(story_id, chapter_index, messages, extracted)
         return jsonify({
             "ai_message": opening,
             "messages": messages,
             "extracted_answers": extracted,
             "chapter_info": conversation.get_chapter_info(chapter_index),
+            "conversation_id": conv_id,
         })
 
     if not message:
@@ -141,25 +161,53 @@ def chat():
 
     # Get AI response
     ai_response, updated_messages = conversation.chat(
-        person_name, chapter_index, messages, message
+        person_name, chapter_index, messages, message, prior_context=prior_stories,
     )
 
     # Extract answers from the updated conversation
     extracted = conversation.extract_answers(chapter_index, updated_messages)
 
-    # Check if all questions are covered
-    chapter_info = conversation.get_chapter_info(chapter_index)
-    status = "completed" if len(extracted) >= chapter_info["question_count"] else "in_progress"
-
     # Save to DB
-    db.save_conversation(story_id, chapter_index, updated_messages, extracted, status)
+    chapter_info = conversation.get_chapter_info(chapter_index)
+    if conv_id:
+        db.update_conversation(conv_id, updated_messages, extracted)
+    else:
+        conv_id = db.create_conversation(story_id, chapter_index, updated_messages, extracted)
 
     return jsonify({
         "ai_message": ai_response,
         "messages": updated_messages,
         "extracted_answers": extracted,
         "chapter_info": chapter_info,
-        "status": status,
+        "conversation_id": conv_id,
+        "status": "in_progress",
+    })
+
+
+@app.route("/api/conversations/<int:story_id>/<int:chapter_index>/new", methods=["POST"])
+def new_conversation_session(story_id, chapter_index):
+    """Start a new conversation session within a chapter."""
+    data = request.json or {}
+    person_name = data.get("person_name", "Friend")
+
+    # Gather context from all existing sessions in this chapter
+    prior_stories = []
+    all_sessions = db.get_chapter_conversations(story_id, chapter_index)
+    for sess in all_sessions:
+        for k, v in sess["extracted_answers"].items():
+            prior_stories.append(v)
+
+    opening = conversation.get_opening_message(chapter_index, person_name, prior_context=prior_stories)
+    messages = [{"role": "assistant", "content": opening, "timestamp": ""}]
+    conv_id = db.create_conversation(story_id, chapter_index, messages, {})
+
+    return jsonify({
+        "ai_message": opening,
+        "messages": messages,
+        "extracted_answers": {},
+        "chapter_info": conversation.get_chapter_info(chapter_index),
+        "conversation_id": conv_id,
+        "session_number": len(all_sessions) + 1,
     })
 
 
@@ -167,34 +215,64 @@ def chat():
 def get_conversations(story_id):
     """Get all chapter conversations for a story (progress overview)."""
     convs = db.get_all_conversations(story_id)
-    result = []
+    # Group by chapter for summary
+    chapters = {}
     for conv in convs:
-        chapter_info = conversation.get_chapter_info(conv["chapter_index"])
+        ci = conv["chapter_index"]
+        if ci not in chapters:
+            chapters[ci] = {"sessions": 0, "total_messages": 0, "total_answers": 0}
+        chapters[ci]["sessions"] += 1
+        chapters[ci]["total_messages"] += len(conv["messages"])
+        chapters[ci]["total_answers"] += len(conv["extracted_answers"])
+
+    result = []
+    for ci, info in sorted(chapters.items()):
+        chapter_info = conversation.get_chapter_info(ci)
         result.append({
-            "chapter_index": conv["chapter_index"],
+            "chapter_index": ci,
             "chapter_info": chapter_info,
-            "message_count": len(conv["messages"]),
-            "answers_count": len(conv["extracted_answers"]),
-            "status": conv["status"],
+            "message_count": info["total_messages"],
+            "answers_count": info["total_answers"],
+            "session_count": info["sessions"],
+            "status": "in_progress" if info["total_messages"] > 0 else "not_started",
         })
     return jsonify(result)
 
 
 @app.route("/api/conversations/<int:story_id>/<int:chapter_index>", methods=["GET"])
 def get_conversation(story_id, chapter_index):
-    """Get full transcript + extracted answers for one chapter."""
-    conv = db.get_conversation(story_id, chapter_index)
-    if not conv:
+    """Get all conversation sessions for a chapter."""
+    sessions = db.get_chapter_conversations(story_id, chapter_index)
+    if not sessions:
         return jsonify({
-            "messages": [],
-            "extracted_answers": {},
+            "sessions": [],
+            "latest": {
+                "messages": [],
+                "extracted_answers": {},
+                "conversation_id": None,
+            },
             "status": "not_started",
             "chapter_info": conversation.get_chapter_info(chapter_index),
         })
+
+    latest = sessions[-1]
     return jsonify({
-        "messages": conv["messages"],
-        "extracted_answers": conv["extracted_answers"],
-        "status": conv["status"],
+        "sessions": [
+            {
+                "conversation_id": s["id"],
+                "message_count": len(s["messages"]),
+                "answers_count": len(s["extracted_answers"]),
+                "extracted_answers": s["extracted_answers"],
+                "created_at": s.get("created_at", ""),
+            }
+            for s in sessions
+        ],
+        "latest": {
+            "messages": latest["messages"],
+            "extracted_answers": latest["extracted_answers"],
+            "conversation_id": latest["id"],
+        },
+        "status": "in_progress",
         "chapter_info": conversation.get_chapter_info(chapter_index),
     })
 

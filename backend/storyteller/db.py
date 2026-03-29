@@ -311,28 +311,85 @@ def save_or_update_response(story_id: int, question: str, answer: str):
 
 # --- Conversation operations ---
 
-def get_conversation(story_id: int, chapter_index: int) -> dict | None:
-    db = get_db()
-    rows = list(db["conversations"].rows_where(
-        "story_id = ? AND chapter_index = ?", [story_id, chapter_index]
-    ))
-    if not rows:
-        return None
-    row = rows[0]
+def _parse_conversation_row(row: dict) -> dict:
     row["messages"] = json.loads(row["messages"]) if row["messages"] else []
     row["extracted_answers"] = json.loads(row["extracted_answers"]) if row["extracted_answers"] else {}
     return row
 
 
+def get_conversation(story_id: int, chapter_index: int) -> dict | None:
+    """Get the latest conversation session for a chapter."""
+    db = get_db()
+    rows = list(db["conversations"].rows_where(
+        "story_id = ? AND chapter_index = ?", [story_id, chapter_index],
+        order_by="-id", limit=1,
+    ))
+    if not rows:
+        return None
+    return _parse_conversation_row(rows[0])
+
+
+def get_conversation_by_id(conversation_id: int) -> dict | None:
+    db = get_db()
+    try:
+        row = db["conversations"].get(conversation_id)
+        return _parse_conversation_row(row)
+    except sqlite_utils.db.NotFoundError:
+        return None
+
+
+def get_chapter_conversations(story_id: int, chapter_index: int) -> list[dict]:
+    """Get all conversation sessions for a chapter, ordered oldest first."""
+    db = get_db()
+    rows = list(db["conversations"].rows_where(
+        "story_id = ? AND chapter_index = ?", [story_id, chapter_index],
+        order_by="id",
+    ))
+    return [_parse_conversation_row(row) for row in rows]
+
+
 def get_all_conversations(story_id: int) -> list[dict]:
     db = get_db()
     rows = list(db["conversations"].rows_where(
-        "story_id = ?", [story_id], order_by="chapter_index"
+        "story_id = ?", [story_id], order_by="chapter_index, id"
     ))
-    for row in rows:
-        row["messages"] = json.loads(row["messages"]) if row["messages"] else []
-        row["extracted_answers"] = json.loads(row["extracted_answers"]) if row["extracted_answers"] else {}
-    return rows
+    return [_parse_conversation_row(row) for row in rows]
+
+
+def create_conversation(
+    story_id: int,
+    chapter_index: int,
+    messages: list[dict] | None = None,
+    extracted_answers: dict | None = None,
+    status: str = "in_progress",
+) -> int:
+    """Always creates a new conversation session."""
+    db = get_db()
+    now = _now()
+    return db["conversations"].insert({
+        "story_id": story_id,
+        "chapter_index": chapter_index,
+        "messages": json.dumps(messages or []),
+        "extracted_answers": json.dumps(extracted_answers or {}),
+        "status": status,
+        "created_at": now,
+        "updated_at": now,
+    }).last_pk
+
+
+def update_conversation(
+    conversation_id: int,
+    messages: list[dict],
+    extracted_answers: dict,
+    status: str = "in_progress",
+):
+    db = get_db()
+    db["conversations"].update(conversation_id, {
+        "messages": json.dumps(messages),
+        "extracted_answers": json.dumps(extracted_answers),
+        "status": status,
+        "updated_at": _now(),
+    })
 
 
 def save_conversation(
@@ -342,26 +399,14 @@ def save_conversation(
     extracted_answers: dict,
     status: str = "in_progress",
 ) -> int:
+    """Legacy upsert — updates latest session or creates first one."""
     db = get_db()
-    now = _now()
     existing = list(db["conversations"].rows_where(
-        "story_id = ? AND chapter_index = ?", [story_id, chapter_index]
+        "story_id = ? AND chapter_index = ?", [story_id, chapter_index],
+        order_by="-id", limit=1,
     ))
     if existing:
-        db["conversations"].update(existing[0]["id"], {
-            "messages": json.dumps(messages),
-            "extracted_answers": json.dumps(extracted_answers),
-            "status": status,
-            "updated_at": now,
-        })
+        update_conversation(existing[0]["id"], messages, extracted_answers, status)
         return existing[0]["id"]
     else:
-        return db["conversations"].insert({
-            "story_id": story_id,
-            "chapter_index": chapter_index,
-            "messages": json.dumps(messages),
-            "extracted_answers": json.dumps(extracted_answers),
-            "status": status,
-            "created_at": now,
-            "updated_at": now,
-        }).last_pk
+        return create_conversation(story_id, chapter_index, messages, extracted_answers, status)

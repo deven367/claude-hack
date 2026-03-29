@@ -15,7 +15,7 @@ A simple, warm interface for capturing life stories through conversational AI in
 
 ## Key technical notes
 
-- **Model alias**: `llm-anthropic` uses dot-separated aliases: `claude-sonnet-4.6` (NOT `claude-sonnet-4-6`). Dashes cause `UnknownModelError`.
+- **Model alias**: `llm-anthropic` uses dot-separated aliases: `claude-opus-4.6` (NOT `claude-opus-4-6`). Dashes cause `UnknownModelError`.
 - **API key setup**: `cd backend && .venv/bin/llm keys set anthropic` — persisted to `~/.config/io.datasette.llm/keys.json`. Also works via `ANTHROPIC_API_KEY` env var.
 - **DB location**: `stories.db` at repo root. `DB_PATH` in `db.py` resolves via `Path(__file__).resolve().parent.parent.parent / "stories.db"`.
 - **Flask serves frontend**: `server.py` uses `template_folder="../frontend"` for production; Vite dev server proxies `/api` to Flask during development.
@@ -46,6 +46,17 @@ A simple, warm interface for capturing life stories through conversational AI in
 - ChatScreen component with chat bubbles, chapter sidebar, progress tracking
 - ReaderScreen updated to render conversation-extracted answers
 - PRs: #17 (backend), #18 (frontend), #19 (reader + AGENTS.md)
+
+### Session 5 — Open-ended conversations & UX overhaul (Billy, 2026-03-28)
+- Switched model from Sonnet 4.6 to **Opus 4.6**
+- Rewrote all system prompts: no forced cheerfulness, questions are loose guides not a checklist, model stays in the user's story instead of steering toward questions
+- Extraction now captures bonus stories (`_story_*` keys) beyond the fixed questions
+- **Multi-session chapters**: users can start multiple conversation sessions per chapter via `+ New Story` button; DB supports multiple conversations per `(story_id, chapter_index)`
+- New endpoint: `POST /api/conversations/<story_id>/<chapter_index>/new`
+- ReaderScreen renders diary-style: narrative story paragraphs first, Q&A details as quieter entries with left border
+- Reader navigates back to chat (not home) when opened from chat
+- Welcome screen: per-person shelves, "Begin Your Life Storybook" / "Tell a Story of Your Own" CTAs, library section with enhanced bookshelf styling
+- PRs: #20 (docs), #21 (this PR)
 
 ## Backlog
 

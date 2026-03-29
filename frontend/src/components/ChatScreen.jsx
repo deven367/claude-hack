@@ -6,6 +6,8 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
   const [currentChapter, setCurrentChapter] = useState(initialChapter)
   const [messages, setMessages] = useState([])
   const [extractedAnswers, setExtractedAnswers] = useState({})
+  const [conversationId, setConversationId] = useState(null)
+  const [sessionCount, setSessionCount] = useState(0)
   const [inputValue, setInputValue] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -31,12 +33,15 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
     setLoading(true)
 
     async function loadChapter() {
-      const conv = await api('GET', `/api/conversations/${storyId}/${currentChapter}`)
+      const data = await api('GET', `/api/conversations/${storyId}/${currentChapter}`)
       if (cancelled) return
 
-      if (conv.messages && conv.messages.length > 0) {
-        setMessages(conv.messages)
-        setExtractedAnswers(conv.extracted_answers || {})
+      if (data.sessions && data.sessions.length > 0) {
+        // Load the latest session
+        setMessages(data.latest.messages || [])
+        setExtractedAnswers(data.latest.extracted_answers || {})
+        setConversationId(data.latest.conversation_id)
+        setSessionCount(data.sessions.length)
         setLoading(false)
       } else {
         // Start new conversation — get opening message
@@ -49,6 +54,8 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
         if (cancelled) return
         setMessages(result.messages || [])
         setExtractedAnswers(result.extracted_answers || {})
+        setConversationId(result.conversation_id || null)
+        setSessionCount(1)
         setLoading(false)
       }
     }
@@ -66,6 +73,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
         progress[c.chapter_index] = {
           messageCount: c.message_count,
           answersCount: c.answers_count,
+          sessionCount: c.session_count || 1,
           status: c.status,
         }
       })
@@ -89,12 +97,14 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
       const result = await api('POST', '/api/chat', {
         story_id: storyId,
         chapter_index: currentChapter,
+        conversation_id: conversationId,
         message: text,
         person_name: personName,
       })
 
       setMessages(result.messages || [])
       setExtractedAnswers(result.extracted_answers || {})
+      if (result.conversation_id) setConversationId(result.conversation_id)
     } catch (err) {
       // Remove optimistic message on error, add error
       setMessages(prev => [
@@ -105,7 +115,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
 
     setSending(false)
     inputRef.current?.focus()
-  }, [inputValue, sending, storyId, currentChapter, personName])
+  }, [inputValue, sending, storyId, currentChapter, conversationId, personName])
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -119,19 +129,42 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
     setCurrentChapter(index)
     setMessages([])
     setExtractedAnswers({})
+    setConversationId(null)
+    setSessionCount(0)
     setSidebarOpen(false)
   }
+
+  const startNewStory = useCallback(async () => {
+    if (sending || loading) return
+    setLoading(true)
+
+    try {
+      const result = await api('POST', `/api/conversations/${storyId}/${currentChapter}/new`, {
+        person_name: personName,
+      })
+      setMessages(result.messages || [])
+      setExtractedAnswers(result.extracted_answers || {})
+      setConversationId(result.conversation_id || null)
+      setSessionCount(result.session_number || sessionCount + 1)
+    } catch (err) {
+      // stay on current conversation
+    }
+    setLoading(false)
+    inputRef.current?.focus()
+  }, [sending, loading, storyId, currentChapter, personName, sessionCount])
 
   const getChapterStatus = (index) => {
     const p = chapterProgress[index]
     if (!p) return 'not_started'
-    if (p.status === 'completed') return 'completed'
     if (p.messageCount > 0) return 'in_progress'
     return 'not_started'
   }
 
-  const answeredCount = Object.keys(extractedAnswers).length
-  const totalQuestions = chapter.questions.length
+  const storyCount = Object.values(extractedAnswers).filter((_, i, arr) => {
+    const keys = Object.keys(extractedAnswers)
+    return keys[i] && keys[i].startsWith('_')
+  }).length
+  const answerCount = Object.keys(extractedAnswers).filter(k => !k.startsWith('_')).length
 
   return (
     <div id="chat-screen" className="screen active">
@@ -149,6 +182,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
         <nav className="chat-chapter-list">
           {CHAPTERS.map((ch, i) => {
             const status = getChapterStatus(i)
+            const progress = chapterProgress[i]
             return (
               <button
                 key={ch.id}
@@ -159,11 +193,11 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
                 <div className="chat-chapter-meta">
                   <span className="chat-chapter-name">{ch.title}</span>
                   <span className="chat-chapter-status">
-                    {status === 'completed' ? 'Complete' :
-                     status === 'in_progress' ? 'In progress' : 'Not started'}
+                    {status === 'in_progress'
+                      ? `${progress?.sessionCount || 1} ${(progress?.sessionCount || 1) === 1 ? 'story' : 'stories'}`
+                      : 'Not started'}
                   </span>
                 </div>
-                {status === 'completed' && <span className="chat-chapter-check">{'\u2713'}</span>}
               </button>
             )
           })}
@@ -185,11 +219,19 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
             <div>
               <h2 className="chat-header-title">{chapter.title}</h2>
               <span className="chat-header-progress">
-                {answeredCount}/{totalQuestions} topics covered
+                {sessionCount > 1 ? `Story ${sessionCount}` : chapter.subtitle}
               </span>
             </div>
           </div>
           <div className="chat-header-right">
+            <button
+              className="chat-new-story-btn"
+              onClick={startNewStory}
+              disabled={sending || loading}
+              title="Start a new story in this chapter"
+            >
+              + New Story
+            </button>
             <button
               className="chat-read-btn"
               onClick={() => onOpenReader(null, storyId, personName, false)}
@@ -199,17 +241,6 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
             </button>
           </div>
         </header>
-
-        {/* Progress bar */}
-        <div className="chat-progress-bar">
-          <div
-            className="chat-progress-fill"
-            style={{
-              width: `${totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0}%`,
-              background: chapter.color,
-            }}
-          />
-        </div>
 
         {/* Messages */}
         <div className="chat-messages" ref={chatBodyRef}>
@@ -266,7 +297,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, on
             <textarea
               ref={inputRef}
               className="chat-input"
-              placeholder="Share your memories..."
+              placeholder="Tell your story..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}

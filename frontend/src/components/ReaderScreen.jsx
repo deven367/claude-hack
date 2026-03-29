@@ -6,14 +6,32 @@ function esc(s) {
   return s.replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-function guidedToBlocks(answers) {
+function guidedToBlocks(chapterData) {
+  // chapterData: { chapterIndex: [ {extracted_answers}, ... ] }
   const blocks = []
-  CHAPTERS.forEach(chapter => {
-    const items = chapter.questions
-      .map(q => ({ question: q.text, answer: answers[`${chapter.id}_${q.id}`] || '' }))
-      .filter(qa => qa.answer.trim().length > 0)
-    if (items.length === 0) return
+  CHAPTERS.forEach((chapter, idx) => {
+    const sessions = chapterData[idx]
+    if (!sessions || sessions.length === 0) return
 
+    // Collect all content from all sessions
+    const allAnswers = {}  // question_id → answer (latest wins)
+    const allStories = []  // bonus stories in order
+
+    sessions.forEach(session => {
+      Object.entries(session).forEach(([key, value]) => {
+        if (key.startsWith('_')) {
+          allStories.push(value)
+        } else {
+          allAnswers[key] = value
+        }
+      })
+    })
+
+    const hasAnswers = Object.keys(allAnswers).length > 0
+    const hasStories = allStories.length > 0
+    if (!hasAnswers && !hasStories) return
+
+    // Chapter header
     blocks.push(`
       <div class="reader-chapter-header" style="--ch-color: ${chapter.color}">
         <span class="reader-chapter-icon">${chapter.icon}</span>
@@ -22,14 +40,30 @@ function guidedToBlocks(answers) {
       </div>
     `)
 
-    items.forEach(qa => {
+    // Stories first — these are the rich narrative content
+    allStories.forEach(story => {
       blocks.push(`
-        <div class="reader-qa">
-          <p class="reader-qa-question">${qa.question}</p>
-          <p class="reader-qa-answer">${esc(qa.answer).replace(/\n/g, '<br>')}</p>
+        <div class="reader-story-entry">
+          <p class="reader-story-text">${esc(story).replace(/\n/g, '<br>')}</p>
         </div>
       `)
     })
+
+    // Then Q&A details as quieter entries
+    const answeredQuestions = chapter.questions
+      .map(q => ({ question: q.text, answer: allAnswers[q.id] || '' }))
+      .filter(qa => qa.answer.trim().length > 0)
+
+    if (answeredQuestions.length > 0) {
+      answeredQuestions.forEach(qa => {
+        blocks.push(`
+          <div class="reader-detail-entry">
+            <p class="reader-detail-label">${qa.question}</p>
+            <p class="reader-detail-value">${esc(qa.answer).replace(/\n/g, '<br>')}</p>
+          </div>
+        `)
+      })
+    }
   })
   return blocks
 }
@@ -146,34 +180,23 @@ export default function ReaderScreen({ personId, storyId, personName, isFreeform
         coverPage = { type: 'cover', personName, customTitle: title }
         contentBlocks = freeformToBlocks(story.content || '')
       } else {
-        // Try conversation data first, fall back to old questionnaire responses
+        // Load all conversations grouped by chapter
         const conversations = await api('GET', `/api/conversations/${storyId}`)
-        let answers = {}
+        const chapterData = {}  // { chapterIndex: [ extracted_answers_1, extracted_answers_2, ... ] }
 
         if (conversations && conversations.length > 0) {
-          // Build answers from conversation extracted_answers
-          // We need full conversation data for each chapter
           for (const conv of conversations) {
-            const fullConv = await api('GET', `/api/conversations/${storyId}/${conv.chapter_index}`)
-            if (fullConv.extracted_answers) {
-              const chapterId = CHAPTERS[conv.chapter_index]?.id
-              if (chapterId) {
-                Object.entries(fullConv.extracted_answers).forEach(([qId, answer]) => {
-                  answers[`${chapterId}_${qId}`] = answer
-                })
-              }
+            const chapterConvs = await api('GET', `/api/conversations/${storyId}/${conv.chapter_index}`)
+            if (chapterConvs.sessions && chapterConvs.sessions.length > 0) {
+              chapterData[conv.chapter_index] = chapterConvs.sessions
+                .map(s => s.extracted_answers || {})
+                .filter(ea => Object.keys(ea).length > 0)
             }
           }
         }
 
-        // Fall back to old questionnaire responses if no conversation data
-        if (Object.keys(answers).length === 0) {
-          const responses = await api('GET', `/api/responses/${storyId}`)
-          responses.forEach(r => { answers[r.question] = r.answer })
-        }
-
         coverPage = { type: 'cover', personName }
-        contentBlocks = guidedToBlocks(answers)
+        contentBlocks = guidedToBlocks(chapterData)
       }
 
       if (cancelled) return

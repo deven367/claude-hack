@@ -9,35 +9,50 @@ import ComposeScreen from './components/ComposeScreen'
 
 export default function App() {
   const [screen, setScreen] = useState('welcome')
+  const [previousScreen, setPreviousScreen] = useState(null)
   const [chatProps, setChatProps] = useState(null)
   const [readerProps, setReaderProps] = useState(null)
   const [composeProps, setComposeProps] = useState(null)
 
   const goHome = useCallback(() => {
     setScreen('welcome')
+    setPreviousScreen(null)
     setChatProps(null)
     setReaderProps(null)
     setComposeProps(null)
   }, [])
 
-  const handleStartGuided = useCallback(async (name, shelfId) => {
+  // Go back from reader — returns to wherever the user came from
+  const goBackFromReader = useCallback(() => {
+    if (previousScreen === 'chat' && chatProps) {
+      setScreen('chat')
+    } else if (previousScreen === 'compose' && composeProps) {
+      setScreen('compose')
+    } else {
+      goHome()
+    }
+    setReaderProps(null)
+    setPreviousScreen(null)
+  }, [previousScreen, chatProps, composeProps, goHome])
+
+  const handleStartGuided = useCallback(async (name) => {
     const result = await api('POST', '/api/persons', { name, age_group: '' })
     const personId = result.person_id
     const storyId = result.story_id
 
     saveToLocal({ personId, storyId, personName: name })
-    addToStoryList({ personId, storyId, personName: name, shelfId })
+    addToStoryList({ personId, storyId, personName: name })
 
     setChatProps({ personName: name, storyId, initialChapter: 0 })
     setScreen('chat')
   }, [])
 
-  const handleStartFreeform = useCallback(async (name, shelfId) => {
+  const handleStartFreeform = useCallback(async (name) => {
     const result = await api('POST', '/api/persons', { name, age_group: '' })
     const personId = result.person_id
     const storyId = result.story_id
 
-    addToStoryList({ personId, storyId, personName: name, type: 'freeform', storyTitle: null, shelfId })
+    addToStoryList({ personId, storyId, personName: name, type: 'freeform', storyTitle: null })
 
     setComposeProps({ personId, storyId, personName: name })
     setScreen('compose')
@@ -58,9 +73,11 @@ export default function App() {
   }, [])
 
   const handleOpenReader = useCallback((personId, storyId, personName, isFreeform) => {
+    // Remember where we came from so we can go back
+    setPreviousScreen(screen === 'reader' ? previousScreen : screen)
     setReaderProps({ personId, storyId, personName, isFreeform })
     setScreen('reader')
-  }, [])
+  }, [screen, previousScreen])
 
   return (
     <>
@@ -87,7 +104,7 @@ export default function App() {
       {screen === 'reader' && readerProps && (
         <ReaderScreen
           {...readerProps}
-          onGoHome={goHome}
+          onGoHome={goBackFromReader}
         />
       )}
 
