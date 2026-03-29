@@ -142,62 +142,126 @@ CHAPTERS = [
 ]
 
 
-def _build_system_prompt(chapter_index: int, person_name: str, extracted_answers: dict) -> str:
+def _build_freeform_system_prompt(person_name: str, extracted_answers: dict) -> str:
+    bonus_stories = {k: v for k, v in extracted_answers.items() if k.startswith("_")}
+
+    prompt = f"""You are having a conversation with {person_name}. They want to tell a story — it could be about anything. Your job is to listen and help them tell it well.
+
+This is completely open-ended. No topics, no questions, no agenda. Just follow wherever they take it.
+
+How to talk:
+- Sound like a normal person. No flowery language.
+- NEVER use phrases like "That's wonderful!", "What a beautiful memory!", "Thank you for sharing that."
+- Keep responses to 1-2 sentences.
+- If they're telling a story, engage with it. Ask about the people, the details, how they felt. Stay in their story.
+- If they pause, you can ask what happened next, or what that meant to them.
+- Talk like a friend at a kitchen table, not like an interviewer."""
+
+    if bonus_stories:
+        prompt += "\n\nStories shared so far:\n"
+        for key, value in bonus_stories.items():
+            prompt += f"- {value[:200]}\n"
+
+    return prompt
+
+
+def _build_freeform_extraction_prompt() -> str:
+    return """Extract the stories from this conversation. Capture each distinct story, memory, or anecdote as a separate entry. Use keys like "_story_1", "_story_2", etc. Write each as a narrative paragraph in the person's voice, cleaned up for readability.
+
+Also extract a "title" key — a short, natural title for the overall story (3-8 words).
+
+Return ONLY a JSON object. No other text.
+
+Example output: {"title": "The Summer We Built the Treehouse", "_story_1": "It was the summer of '78 and my dad decided we were going to build a treehouse. None of us knew what we were doing.", "_story_2": "My sister fell out of that treehouse three times before we finished it. She still has the scar on her knee."}"""
+
+
+def _build_system_prompt(
+    chapter_index: int,
+    person_name: str,
+    extracted_answers: dict,
+    prior_context: list[str] | None = None,
+) -> str:
+    if chapter_index == -1:
+        return _build_freeform_system_prompt(person_name, extracted_answers)
+
     chapter = CHAPTERS[chapter_index]
     questions = chapter["questions"]
 
-    answered_ids = set(extracted_answers.keys())
+    answered_ids = set(k for k in extracted_answers.keys() if not k.startswith("_"))
     unanswered = [q for q in questions if q["id"] not in answered_ids]
     answered = [q for q in questions if q["id"] in answered_ids]
+    bonus_stories = {k: v for k, v in extracted_answers.items() if k.startswith("_")}
 
-    prompt = f"""You are a warm, empathetic interviewer helping {person_name} tell the story of their life. You are currently on the chapter called "{chapter['title']}" — {chapter['subtitle']}.
+    prompt = f"""You are helping {person_name} tell the story of their life. Right now you're talking about "{chapter['title']}" — {chapter['subtitle']}.
 
-Your role is to have a natural, flowing conversation that draws out {person_name}'s memories and stories. You are NOT filling out a form — you are having a heartfelt conversation.
+This is a conversation, not a questionnaire. Let {person_name} lead. If they want to tell a long story, let them talk. If they go on tangents, follow — tangents are often where the real story lives. Your job is to be a good listener and help them go deeper into what matters to them.
 
-Guidelines:
-- Ask ONE question at a time. Never list multiple questions.
-- Follow up on interesting details before moving to a new topic. If they mention something touching or surprising, explore it.
-- Be warm, encouraging, and genuinely curious. Use their name occasionally.
-- Keep your responses concise — 2-3 sentences usually. This is their story, not yours.
-- Acknowledge what they share before asking the next question. Show you're listening.
-- If they give a short answer, gently encourage them to elaborate. "Tell me more about that..." or "What was that like?"
-- If they want to skip a topic, respect that gracefully and move on.
-- Don't be robotic or overly formal. Be like a kind friend who genuinely wants to hear their story.
+IMPORTANT — do not steer the conversation toward your question list. If {person_name} is in the middle of a story, stay with that story. Ask about details, people, feelings, what happened next. Do NOT change the subject to try to "cover" a question. The questions below are only there so you have something to fall back on during a lull — they are not goals to accomplish.
 
-Topics to explore in this chapter (use these as guidance, not a rigid checklist):
+How to talk:
+- Sound like a normal person. No flowery language. No "So let's go back to where it all started" or "the world you were born into." Just talk plainly.
+- NEVER use phrases like "That's wonderful!", "What a beautiful memory!", "Thank you for sharing that." These are fake and people can tell.
+- Keep responses to 1-2 sentences. You're not giving a speech.
+- If they're telling a story, engage with it. Ask about the people, the details, how they felt. Stay in their story.
+- If there's a natural pause and they seem done with a thread, you can gently open a new one.
+- If they give a short answer, you can invite more ("What was that like?") but don't push.
+- If they want to skip something, just move on.
+- Talk like a friend at a kitchen table, not like an interviewer on a podcast.
+
+Background topics for this chapter (use ONLY during natural lulls, never interrupt a story for these):
 """
 
     for q in questions:
-        status = "ALREADY ANSWERED" if q["id"] in answered_ids else "not yet covered"
-        prompt += f"- {q['text']} [{status}]\n"
+        status = "(covered)" if q["id"] in answered_ids else ""
+        prompt += f"- {q['text']} {status}\n"
 
     if answered:
-        prompt += "\nWhat we already know from this chapter:\n"
+        prompt += "\nWhat's been shared in this conversation:\n"
         for q in answered:
             prompt += f"- {q['text']}: {extracted_answers[q['id']]}\n"
 
-    if unanswered:
-        prompt += f"\nTopics still to explore: {len(unanswered)} remaining. Weave these in naturally."
-    else:
-        prompt += "\nAll topics in this chapter have been covered! You can wrap up warmly and suggest moving to the next chapter."
+    if bonus_stories:
+        prompt += "\nStories shared in this conversation:\n"
+        for key, value in bonus_stories.items():
+            prompt += f"- {value[:200]}\n"
+
+    if prior_context:
+        prompt += "\nFrom previous conversations in this chapter (don't repeat, but you can reference):\n"
+        for ctx in prior_context[:10]:
+            prompt += f"- {ctx[:150]}\n"
+
+    prompt += f"""
+{person_name}'s story is bigger than any list of questions. If they share memories, feelings, or stories that don't map to a specific question, that's some of the best material for their book. Let the conversation breathe.
+
+{person_name} can always come back to this chapter to add more stories. There's no rush."""
+
+    if not unanswered:
+        prompt += f"\n\nYou've touched on the main topics for this chapter, but {person_name} may have more to say. Stay open. If the conversation winds down naturally, you can mention they could move to the next chapter or start a new story whenever they're ready."
 
     return prompt
 
 
 def _build_extraction_prompt(chapter_index: int) -> str:
+    if chapter_index == -1:
+        return _build_freeform_extraction_prompt()
+
     chapter = CHAPTERS[chapter_index]
     questions = chapter["questions"]
 
-    prompt = """Extract answers from this conversation transcript. For each question below, if the person has provided an answer (even partial), extract it. Use their own words as much as possible, cleaned up slightly for readability. If a question hasn't been answered yet, omit it from the output.
+    prompt = """Extract information from this conversation for a life story book. Do two things:
 
-Return ONLY a JSON object mapping question IDs to extracted answer text. No other text.
+1. For each question below, if the person answered it (even partially), extract their answer using their own words, cleaned up for readability. Omit unanswered questions.
 
-Questions to extract:
+2. If the person shared stories, memories, anecdotes, or details that don't fit neatly into any question — capture those too. These are often the richest material. Use keys like "_story_1", "_story_2", etc. Write each as a short narrative paragraph in the person's voice.
+
+Return ONLY a JSON object. No other text.
+
+Questions to look for:
 """
     for q in questions:
         prompt += f'- "{q["id"]}": {q["text"]}\n'
 
-    prompt += '\nExample output: {"birthday": "March 15, 1952", "birthplace": "Portland, Oregon"}'
+    prompt += '\nExample output: {"birthday": "March 15, 1952", "birthplace": "Portland, Oregon", "_story_1": "We lived on a farm outside town with no electricity until I was six. My mother used to read to us by candlelight every night — she could do all the voices."}'
     return prompt
 
 
@@ -206,6 +270,13 @@ def get_chapter_count() -> int:
 
 
 def get_chapter_info(chapter_index: int) -> dict:
+    if chapter_index == -1:
+        return {
+            "id": "freeform",
+            "title": "Your Story",
+            "subtitle": "Tell it your way",
+            "question_count": 0,
+        }
     if 0 <= chapter_index < len(CHAPTERS):
         ch = CHAPTERS[chapter_index]
         return {
@@ -217,18 +288,46 @@ def get_chapter_info(chapter_index: int) -> dict:
     return {}
 
 
-def get_opening_message(chapter_index: int, person_name: str) -> str:
+def get_opening_message(
+    chapter_index: int,
+    person_name: str,
+    prior_context: list[str] | None = None,
+    custom_chapter_title: str | None = None,
+) -> str:
     """Generate the AI's opening message for a new chapter conversation."""
-    chapter = CHAPTERS[chapter_index]
     model = llm.get_model(MODEL_ID)
 
-    system = f"""You are a warm interviewer helping {person_name} tell their life story. You're starting a new chapter: "{chapter['title']}" — {chapter['subtitle']}.
+    has_prior = prior_context and len(prior_context) > 0
 
-Write a brief, warm opening (2-3 sentences max) that:
-1. Introduces the chapter theme naturally
-2. Asks the first question from this list in a conversational way: {chapter['questions'][0]['text']}
+    # Freeform / custom chapter
+    if custom_chapter_title is not None or chapter_index == -1:
+        title = custom_chapter_title or "their story"
+        if has_prior:
+            system = f"""You're having a conversation with {person_name} about "{title}". They've talked about this before and are back to share more.
 
-Be warm and inviting, not formal. Make them feel comfortable sharing."""
+Write ONE short sentence welcoming them back. Don't summarize. Keep it simple."""
+        else:
+            system = f"""You're having a conversation with {person_name}. They want to tell a story about "{title}".
+
+Write ONE short, inviting sentence to get started. Something like "So, tell me about it." or "What comes to mind?" Keep it simple and direct. Don't ask a specific question — let them lead."""
+        response = model.prompt("Begin the conversation.", system=system)
+        return response.text().strip()
+
+    chapter = CHAPTERS[chapter_index]
+
+    # Build a summary of what this chapter covers vs other chapters
+    questions_summary = ", ".join(q["text"].lower().rstrip("?") for q in chapter["questions"][:3])
+
+    if has_prior:
+        system = f"""You're having a conversation with {person_name} about their life, specifically "{chapter['title']}". They've talked about this before and are back to share more.
+
+Write ONE short sentence welcoming them back. Something like "Hey, welcome back." or "Good to pick this up again." Don't be flowery. Don't summarize. Don't ask a question yet."""
+    else:
+        system = f"""You're having a conversation with {person_name} about their life. You're starting on "{chapter['title']}" — {chapter['subtitle']}.
+
+This chapter is specifically about: {questions_summary}. Stay on THIS chapter's topic — don't ask about things covered in other chapters.
+
+Write ONE short, simple sentence to get started. Something plain and direct that fits this specific chapter topic. Not dramatic, not poetic, not a paragraph. One sentence, no more."""
 
     response = model.prompt("Begin the conversation.", system=system)
     return response.text().strip()
@@ -239,6 +338,8 @@ def chat(
     chapter_index: int,
     messages: list[dict],
     user_message: str,
+    prior_context: list[str] | None = None,
+    custom_chapter_title: str | None = None,
 ) -> tuple[str, list[dict]]:
     """Send a message and get AI response. Returns (ai_response, updated_messages)."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -246,11 +347,10 @@ def chat(
     # Append user message
     messages.append({"role": "user", "content": user_message, "timestamp": now})
 
-    # Build conversation for LLM — currently extracted answers are computed separately
-    # so we pass empty dict for the system prompt (answers get refreshed after each exchange)
-    existing_answers = extract_answers(chapter_index, messages)
-
-    system = _build_system_prompt(chapter_index, person_name, existing_answers)
+    # For custom chapters, use freeform prompt
+    effective_index = -1 if custom_chapter_title is not None else chapter_index
+    existing_answers = extract_answers(effective_index, messages)
+    system = _build_system_prompt(effective_index, person_name, existing_answers, prior_context)
     model = llm.get_model(MODEL_ID)
 
     # Build the LLM conversation
@@ -272,6 +372,12 @@ def chat(
 
     response = model.prompt(full_prompt, system=system)
     ai_text = response.text().strip()
+
+    # Polish the user's message for the book
+    user_msg = messages[-1]  # the user message we just appended
+    polished = polish_message(user_msg["content"])
+    if polished != user_msg["content"]:
+        user_msg["polished"] = polished
 
     messages.append({"role": "assistant", "content": ai_text, "timestamp": now})
     return ai_text, messages
@@ -307,3 +413,16 @@ def extract_answers(chapter_index: int, messages: list[dict]) -> dict:
         logger.warning("Answer extraction failed: %s", e)
 
     return {}
+
+
+def polish_message(text: str) -> str:
+    """Clean up a spoken/transcribed message for readability. Preserves meaning and voice."""
+    model = llm.get_model(MODEL_ID)
+    system = """Lightly clean up this transcribed speech for a life story book. Fix grammar, remove filler words (um, uh, like, you know), and improve sentence structure. Keep the person's voice and personality — don't make it formal or literary. Keep it in first person. If it's already clean, return it unchanged. Return ONLY the cleaned text, nothing else."""
+    try:
+        response = model.prompt(text, system=system)
+        polished = response.text().strip()
+        return polished if polished else text
+    except Exception as e:
+        logger.warning("Polish failed: %s", e)
+        return text
