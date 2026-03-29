@@ -208,7 +208,8 @@ export default function ReaderScreen({ personId, storyId, personName, isFreeform
         for (const session of freeformSessions) {
           if (session.extracted_answers?.title) { storyTitle = session.extracted_answers.title; break }
         }
-        coverPage = { type: 'cover', personName, customTitle: storyTitle || `${personName}'s Story` }
+        const safeStoryTitle = storyTitle ? esc(storyTitle) : null
+        coverPage = { type: 'cover', personName, customTitle: safeStoryTitle || `${personName}'s Story` }
         // Render freeform as transcript too
         const blocks = []
         freeformSessions.forEach(session => {
