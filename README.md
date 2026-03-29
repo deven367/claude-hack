@@ -13,7 +13,7 @@ A warm, conversational app for capturing life stories. Instead of filling out fo
 ## Stack
 
 - **Frontend**: React 19 + Vite (dev server on `localhost:5173`)
-- **Backend**: Flask REST API + SQLite (on `localhost:5000`)
+- **Backend**: Flask REST API + SQLite (on `localhost:5050`)
 - **AI**: Claude Sonnet 4.6 via `llm-anthropic`
 - **Styling**: Custom CSS with DM Serif Display, Crimson Pro, and Kalam fonts
 
