@@ -54,6 +54,8 @@ def add_cors_headers(response):
         "http://localhost:5173",
         "http://localhost:5050",
     ]
+    if origin.endswith(".vercel.app") and "deven367" in origin:
+        allowed_origins.append(origin)
     if origin in allowed_origins:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
