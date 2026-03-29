@@ -4,20 +4,17 @@ import { saveToLocal, addToStoryList, ensureShelves, getAllLocalStories } from '
 import WelcomeScreen from './components/WelcomeScreen'
 import ChatScreen from './components/ChatScreen'
 import ReaderScreen from './components/ReaderScreen'
-import ComposeScreen from './components/ComposeScreen'
 
 export default function App() {
   const [screen, setScreen] = useState('welcome')
   const [chatProps, setChatProps] = useState(null)
   const [readerProps, setReaderProps] = useState(null)
-  const [composeProps, setComposeProps] = useState(null)
   const [muted, setMuted] = useState(false)
 
   const goHome = useCallback(() => {
     setScreen('welcome')
     setChatProps(null)
     setReaderProps(null)
-    setComposeProps(null)
   }, [])
 
   const handleStartGuided = useCallback(async (name, shelfId) => {
@@ -39,22 +36,18 @@ export default function App() {
 
     addToStoryList({ personId, storyId, personName: name, type: 'freeform', storyTitle: null, shelfId })
 
-    setComposeProps({ personId, storyId, personName: name })
-    setScreen('compose')
+    setChatProps({ personName: name, storyId, freeform: true })
+    setScreen('chat')
   }, [])
 
   const handleContinue = useCallback(async (personId, storyId) => {
     const stories = getAllLocalStories()
-    const entry = stories.find(s => s.personId === personId)
+    const entry = stories.find(s => s.storyId === storyId) || stories.find(s => s.personId === personId)
     const personName = entry?.personName || 'You'
+    const isFreeform = entry?.type === 'freeform'
 
-    setChatProps({ personName, storyId, initialChapter: 0 })
+    setChatProps({ personName, storyId, initialChapter: 0, freeform: isFreeform })
     setScreen('chat')
-  }, [])
-
-  const handleOpenCompose = useCallback((personId, storyId, personName) => {
-    setComposeProps({ personId, storyId, personName })
-    setScreen('compose')
   }, [])
 
   const handleOpenReader = useCallback((personId, storyId, personName, isFreeform) => {
@@ -70,7 +63,6 @@ export default function App() {
           onStartGuided={handleStartGuided}
           onStartFreeform={handleStartFreeform}
           onContinue={handleContinue}
-          onOpenCompose={handleOpenCompose}
           onOpenReader={handleOpenReader}
         />
       )}
@@ -92,13 +84,6 @@ export default function App() {
         />
       )}
 
-      {screen === 'compose' && composeProps && (
-        <ComposeScreen
-          {...composeProps}
-          onGoHome={goHome}
-          onOpenReader={handleOpenReader}
-        />
-      )}
     </>
   )
 }

@@ -174,7 +174,7 @@ function NewBookCard({ color, title, subtitle, onStart, active, onActivate, onDe
   )
 }
 
-export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContinue, onOpenCompose, onOpenReader }) {
+export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContinue, onOpenReader }) {
   const [activeBook, setActiveBook] = useState(null)
   const [, forceUpdate] = useState(0)
   const stories = getAllLocalStories()
@@ -203,11 +203,7 @@ export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContin
   }
 
   const handleWrite = (story) => {
-    if (story.type === 'freeform') {
-      onOpenCompose(story.personId, story.storyId, story.personName)
-    } else {
-      onContinue(story.personId, story.storyId)
-    }
+    onContinue(story.personId, story.storyId)
   }
 
   return (
