@@ -8,27 +8,20 @@ import llm
 
 logger = logging.getLogger(__name__)
 
-MODEL_ID = "claude-sonnet-4.6"
+MODEL_ID = "claude-opus-4.6"
 
 # Chapter data mirrored from frontend — questions the AI should cover per chapter.
 CHAPTERS = [
     {
-        "id": "beginning",
-        "title": "In the Beginning",
-        "subtitle": "Where your story starts",
+        "id": "childhood",
+        "title": "Childhood",
+        "subtitle": "Where your story starts and the early days",
         "questions": [
             {"id": "birthday", "text": "When is your birthday?"},
             {"id": "birthplace", "text": "Where were you born?"},
             {"id": "named_after", "text": "Were you named after anyone special?"},
             {"id": "baby_stories", "text": "What stories has your family told about you as a baby?"},
             {"id": "earliest_memory", "text": "What is your earliest childhood memory?"},
-        ],
-    },
-    {
-        "id": "growing_up",
-        "title": "Growing Up",
-        "subtitle": "Childhood days",
-        "questions": [
             {"id": "hometown", "text": "Where did you grow up?"},
             {"id": "nickname", "text": "Did you have a nickname?"},
             {"id": "best_friend", "text": "Who was your best friend growing up?"},

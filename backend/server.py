@@ -1,5 +1,17 @@
 """Share Your Story - Flask server with REST API."""
 
+import os
+from pathlib import Path
+
+# Load .env file from project root (no dependencies needed)
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    for line in _env_path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip())
+
 from flask import Flask, render_template, jsonify, request
 
 from storyteller import db

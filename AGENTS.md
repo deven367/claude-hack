@@ -15,8 +15,8 @@ A simple, warm interface for capturing life stories through conversational AI in
 
 ## Key technical notes
 
-- **Model alias**: `llm-anthropic` uses dot-separated aliases: `claude-sonnet-4.6` (NOT `claude-sonnet-4-6`). Dashes cause `UnknownModelError`.
-- **API key setup**: `cd backend && .venv/bin/llm keys set anthropic` — persisted to `~/.config/io.datasette.llm/keys.json`. Also works via `ANTHROPIC_API_KEY` env var.
+- **Model alias**: `llm-anthropic` uses dot-separated aliases: `claude-opus-4.6` (NOT `claude-opus-4-6`). Dashes cause `UnknownModelError`.
+- **API key setup**: Use `.env` file at project root (auto-loaded by server.py). Template at `.env_template`. Keys: `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`.
 - **DB location**: `stories.db` at repo root. `DB_PATH` in `db.py` resolves via `Path(__file__).resolve().parent.parent.parent / "stories.db"`.
 - **Flask serves frontend**: `server.py` uses `template_folder="../frontend"` for production; Vite dev server proxies `/api` to Flask during development.
 - **Qwen think mode**: Local Ollama model `qwen3.5:2b` requires `think=False` to avoid enormous reasoning traces.

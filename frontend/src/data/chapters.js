@@ -1,8 +1,8 @@
 export const CHAPTERS = [
   {
-    id: 'beginning',
-    title: 'In the Beginning',
-    subtitle: 'Where your story starts',
+    id: 'childhood',
+    title: 'Childhood',
+    subtitle: 'Where your story starts and the early days',
     icon: '\u{1F338}',
     color: '#D4A5A5',
     questions: [
@@ -11,15 +11,6 @@ export const CHAPTERS = [
       { id: 'named_after', text: "Were you named after anyone special?", size: 'full', type: 'short', placeholder: "The story behind your name..." },
       { id: 'baby_stories', text: "What stories has your family told about you as a baby?", size: 'full', type: 'long', placeholder: "First words, funny moments..." },
       { id: 'earliest_memory', text: "What is your earliest childhood memory?", size: 'full', type: 'long', placeholder: "The very first thing you can remember..." },
-    ]
-  },
-  {
-    id: 'growing_up',
-    title: 'Growing Up',
-    subtitle: 'Childhood days',
-    icon: '\u{1F3E1}',
-    color: '#D4B896',
-    questions: [
       { id: 'hometown', text: "Where did you grow up?", size: 'half', type: 'short', placeholder: "Your hometown..." },
       { id: 'nickname', text: "Did you have a nickname?", size: 'half', type: 'short', placeholder: "What people called you..." },
       { id: 'best_friend', text: "Who was your best friend growing up?", size: 'half', type: 'short', placeholder: "A name and a memory..." },
