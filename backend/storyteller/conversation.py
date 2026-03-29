@@ -2,13 +2,35 @@
 
 import json
 import logging
+import random
 from datetime import datetime, timezone
 
 import llm
 
 logger = logging.getLogger(__name__)
 
-MODEL_ID = "claude-opus-4.6"
+MODEL_ID = "anthropic/claude-sonnet-4-6"
+
+# Map of language codes to their full names for system prompts
+LANGUAGE_NAMES = {
+    "en": "English", "es": "Spanish", "fr": "French", "de": "German",
+    "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "pl": "Polish",
+    "sv": "Swedish", "da": "Danish", "fi": "Finnish", "no": "Norwegian",
+    "ro": "Romanian", "el": "Greek", "cs": "Czech", "sk": "Slovak",
+    "bg": "Bulgarian", "hr": "Croatian", "hu": "Hungarian", "uk": "Ukrainian",
+    "ru": "Russian", "tr": "Turkish", "ar": "Arabic", "hi": "Hindi",
+    "ta": "Tamil", "zh": "Chinese", "ja": "Japanese", "ko": "Korean",
+    "id": "Indonesian", "ms": "Malay", "fil": "Filipino", "vi": "Vietnamese",
+    "th": "Thai",
+}
+
+
+def _language_instruction(language: str) -> str:
+    """Return a system prompt instruction for responding in the given language."""
+    if not language or language == "en":
+        return ""
+    lang_name = LANGUAGE_NAMES.get(language, language)
+    return f"\n\nIMPORTANT: You MUST respond in {lang_name}. The user's interface is set to {lang_name}, so all your messages — questions, follow-ups, everything — must be written in {lang_name}. Do NOT respond in English."
 
 # Chapter data mirrored from frontend — questions the AI should cover per chapter.
 CHAPTERS = [
@@ -142,7 +164,7 @@ CHAPTERS = [
 ]
 
 
-def _build_freeform_system_prompt(person_name: str, extracted_answers: dict) -> str:
+def _build_freeform_system_prompt(person_name: str, extracted_answers: dict, language: str = "en") -> str:
     bonus_stories = {k: v for k, v in extracted_answers.items() if k.startswith("_")}
 
     prompt = f"""You are having a conversation with {person_name}. They want to tell a story — it could be about anything. Your job is to listen and help them tell it well.
@@ -162,6 +184,7 @@ How to talk:
         for key, value in bonus_stories.items():
             prompt += f"- {value[:200]}\n"
 
+    prompt += _language_instruction(language)
     return prompt
 
 
@@ -180,9 +203,10 @@ def _build_system_prompt(
     person_name: str,
     extracted_answers: dict,
     prior_context: list[str] | None = None,
+    language: str = "en",
 ) -> str:
     if chapter_index == -1:
-        return _build_freeform_system_prompt(person_name, extracted_answers)
+        return _build_freeform_system_prompt(person_name, extracted_answers, language=language)
 
     chapter = CHAPTERS[chapter_index]
     questions = chapter["questions"]
@@ -238,6 +262,7 @@ Background topics for this chapter (use ONLY during natural lulls, never interru
     if not unanswered:
         prompt += f"\n\nYou've touched on the main topics for this chapter, but {person_name} may have more to say. Stay open. If the conversation winds down naturally, you can mention they could move to the next chapter or start a new story whenever they're ready."
 
+    prompt += _language_instruction(language)
     return prompt
 
 
@@ -288,49 +313,384 @@ def get_chapter_info(chapter_index: int) -> dict:
     return {}
 
 
+# Pre-written opening messages per language — no LLM call needed.
+# Each language has: first_chapter, freeform_new (list), freeform_returning (list), guided_returning (list)
+# {name} is replaced with the person's name at runtime.
+_OPENERS = {
+    "en": {
+        "first": "So {name}, let\u2019s start at the very beginning \u2014 when and where were you born?",
+        "freeform_new": [
+            "So {name}, what story would you like to share?",
+            "Alright {name}, what\u2019s on your mind? Tell me anything.",
+            "I\u2019m listening, {name}. What would you like to talk about?",
+            "What\u2019s a story you\u2019ve been wanting to tell, {name}?",
+            "Go ahead, {name} \u2014 what comes to mind?",
+        ],
+        "freeform_return": [
+            "Welcome back, {name}. What else would you like to share?",
+            "Good to have you back, {name}. Got another story for me?",
+            "Hey {name}, ready to pick up where we left off?",
+            "Back for more, {name}? I\u2019m all ears.",
+        ],
+        "guided_return": [
+            "Welcome back, {name}. Got another story from this chapter?",
+            "Hey {name}, good to pick this up again. What else comes to mind?",
+            "Back for more, {name}? What else would you like to share about this?",
+        ],
+    },
+    "es": {
+        "first": "Bueno {name}, empecemos por el principio \u2014 \u00bfcu\u00e1ndo y d\u00f3nde naciste?",
+        "freeform_new": [
+            "\u00bfQu\u00e9 historia te gustar\u00eda compartir, {name}?",
+            "Te escucho, {name}. \u00bfDe qu\u00e9 quieres hablar?",
+            "\u00bfQu\u00e9 historia has querido contar, {name}?",
+        ],
+        "freeform_return": [
+            "Bienvenido de vuelta, {name}. \u00bfQu\u00e9 m\u00e1s te gustar\u00eda compartir?",
+            "Qu\u00e9 bueno tenerte de vuelta, {name}. \u00bfTienes otra historia?",
+        ],
+        "guided_return": [
+            "Bienvenido de vuelta, {name}. \u00bfTienes otra historia de este cap\u00edtulo?",
+            "Hola {name}, \u00bfqu\u00e9 m\u00e1s recuerdas?",
+        ],
+    },
+    "fr": {
+        "first": "Alors {name}, commen\u00e7ons par le d\u00e9but \u2014 quand et o\u00f9 \u00eates-vous n\u00e9(e) ?",
+        "freeform_new": [
+            "Quelle histoire aimeriez-vous partager, {name} ?",
+            "Je vous \u00e9coute, {name}. De quoi aimeriez-vous parler ?",
+            "Allez-y, {name} \u2014 qu\u2019est-ce qui vous vient \u00e0 l\u2019esprit ?",
+        ],
+        "freeform_return": [
+            "Content de vous revoir, {name}. Quoi d\u2019autre aimeriez-vous partager ?",
+            "Bon retour, {name}. Vous avez une autre histoire ?",
+        ],
+        "guided_return": [
+            "Bon retour, {name}. Une autre histoire de ce chapitre ?",
+            "Hey {name}, quoi d\u2019autre vous vient \u00e0 l\u2019esprit ?",
+        ],
+    },
+    "de": {
+        "first": "Also {name}, fangen wir ganz von vorne an \u2014 wann und wo bist du geboren?",
+        "freeform_new": [
+            "Welche Geschichte m\u00f6chtest du erz\u00e4hlen, {name}?",
+            "Ich h\u00f6re zu, {name}. Wor\u00fcber m\u00f6chtest du sprechen?",
+            "Leg los, {name} \u2014 was kommt dir in den Sinn?",
+        ],
+        "freeform_return": [
+            "Willkommen zur\u00fcck, {name}. Was m\u00f6chtest du noch erz\u00e4hlen?",
+            "Sch\u00f6n, dass du wieder da bist, {name}. Noch eine Geschichte?",
+        ],
+        "guided_return": [
+            "Willkommen zur\u00fcck, {name}. Noch eine Geschichte aus diesem Kapitel?",
+            "Hey {name}, was f\u00e4llt dir noch ein?",
+        ],
+    },
+    "it": {
+        "first": "Allora {name}, partiamo dall\u2019inizio \u2014 quando e dove sei nato/a?",
+        "freeform_new": [
+            "Che storia vorresti condividere, {name}?",
+            "Ti ascolto, {name}. Di cosa vorresti parlare?",
+            "Vai pure, {name} \u2014 cosa ti viene in mente?",
+        ],
+        "freeform_return": [
+            "Bentornato/a, {name}. Cos\u2019altro vorresti condividere?",
+            "Che bello rivederti, {name}. Hai un\u2019altra storia?",
+        ],
+        "guided_return": [
+            "Bentornato/a, {name}. Un\u2019altra storia da questo capitolo?",
+            "Hey {name}, cos\u2019altro ti viene in mente?",
+        ],
+    },
+    "pt": {
+        "first": "Ent\u00e3o {name}, vamos come\u00e7ar pelo in\u00edcio \u2014 quando e onde voc\u00ea nasceu?",
+        "freeform_new": [
+            "Que hist\u00f3ria voc\u00ea gostaria de compartilhar, {name}?",
+            "Estou ouvindo, {name}. Sobre o que voc\u00ea quer falar?",
+            "Pode come\u00e7ar, {name} \u2014 o que vem \u00e0 mente?",
+        ],
+        "freeform_return": [
+            "Bem-vindo de volta, {name}. O que mais gostaria de compartilhar?",
+            "Que bom ter voc\u00ea de volta, {name}. Tem outra hist\u00f3ria?",
+        ],
+        "guided_return": [
+            "Bem-vindo de volta, {name}. Outra hist\u00f3ria deste cap\u00edtulo?",
+            "E a\u00ed {name}, o que mais voc\u00ea lembra?",
+        ],
+    },
+    "ja": {
+        "first": "{name}\u3055\u3093\u3001\u307e\u305a\u306f\u6700\u521d\u304b\u3089\u59cb\u3081\u307e\u3057\u3087\u3046\u2014\u2014\u3044\u3064\u3001\u3069\u3053\u3067\u751f\u307e\u308c\u307e\u3057\u305f\u304b\uff1f",
+        "freeform_new": [
+            "{name}\u3055\u3093\u3001\u3069\u3093\u306a\u8a71\u3092\u3057\u305f\u3044\u3067\u3059\u304b\uff1f",
+            "\u805e\u304b\u305b\u3066\u304f\u3060\u3055\u3044\u3001{name}\u3055\u3093\u3002\u4f55\u304c\u601d\u3044\u6d6e\u304b\u3073\u307e\u3059\u304b\uff1f",
+        ],
+        "freeform_return": [
+            "\u304a\u304b\u3048\u308a\u306a\u3055\u3044\u3001{name}\u3055\u3093\u3002\u4ed6\u306b\u4f55\u304b\u5171\u6709\u3057\u305f\u3044\u3053\u3068\u306f\uff1f",
+            "\u307e\u305f\u4f1a\u3048\u307e\u3057\u305f\u306d\u3001{name}\u3055\u3093\u3002\u6b21\u306e\u8a71\u306f\uff1f",
+        ],
+        "guided_return": [
+            "\u304a\u304b\u3048\u308a\u306a\u3055\u3044\u3001{name}\u3055\u3093\u3002\u3053\u306e\u7ae0\u304b\u3089\u4ed6\u306b\u4f55\u304b\uff1f",
+            "{name}\u3055\u3093\u3001\u4ed6\u306b\u4f55\u304b\u601d\u3044\u51fa\u3057\u307e\u3057\u305f\u304b\uff1f",
+        ],
+    },
+    "zh": {
+        "first": "{name}\uff0c\u8ba9\u6211\u4eec\u4ece\u5934\u5f00\u59cb\u2014\u2014\u4f60\u662f\u4ec0\u4e48\u65f6\u5019\u3001\u5728\u54ea\u91cc\u51fa\u751f\u7684\uff1f",
+        "freeform_new": [
+            "{name}\uff0c\u4f60\u60f3\u5206\u4eab\u4ec0\u4e48\u6545\u4e8b\uff1f",
+            "\u6211\u5728\u542c\uff0c{name}\u3002\u4f60\u60f3\u804a\u4ec0\u4e48\uff1f",
+        ],
+        "freeform_return": [
+            "\u6b22\u8fce\u56de\u6765\uff0c{name}\u3002\u8fd8\u60f3\u5206\u4eab\u4ec0\u4e48\uff1f",
+            "\u5f88\u9ad8\u5174\u4f60\u56de\u6765\u4e86\uff0c{name}\u3002\u8fd8\u6709\u5176\u4ed6\u6545\u4e8b\u5417\uff1f",
+        ],
+        "guided_return": [
+            "\u6b22\u8fce\u56de\u6765\uff0c{name}\u3002\u8fd9\u4e00\u7ae0\u8fd8\u6709\u5176\u4ed6\u6545\u4e8b\u5417\uff1f",
+            "{name}\uff0c\u8fd8\u8bb0\u5f97\u4ec0\u4e48\u5417\uff1f",
+        ],
+    },
+    "ko": {
+        "first": "{name}\ub2d8, \ucc98\uc74c\ubd80\ud130 \uc2dc\uc791\ud574 \ubcfc\uae4c\uc694 \u2014 \uc5b8\uc81c, \uc5b4\ub514\uc11c \ud0dc\uc5b4\ub0ac\ub098\uc694?",
+        "freeform_new": [
+            "{name}\ub2d8, \uc5b4\ub5a4 \uc774\uc57c\uae30\ub97c \ub098\ub204\uace0 \uc2f6\uc73c\uc138\uc694?",
+            "\ub4e3\uace0 \uc788\uc5b4\uc694, {name}\ub2d8. \ubb34\uc5c7\uc774 \ub5a0\uc624\ub974\uc138\uc694?",
+        ],
+        "freeform_return": [
+            "\ub2e4\uc2dc \uc624\uc168\uad70\uc694, {name}\ub2d8. \ub610 \ub098\ub204\uace0 \uc2f6\uc740 \uc774\uc57c\uae30\uac00 \uc788\uc73c\uc138\uc694?",
+        ],
+        "guided_return": [
+            "\ub2e4\uc2dc \uc624\uc168\uad70\uc694, {name}\ub2d8. \uc774 \ucc55\ud130\uc5d0\uc11c \ub610 \ub2e4\ub978 \uc774\uc57c\uae30\uac00 \uc788\uc73c\uc138\uc694?",
+        ],
+    },
+    "ar": {
+        "first": "\u062d\u0633\u0646\u064b\u0627 {name}\u060c \u0644\u0646\u0628\u062f\u0623 \u0645\u0646 \u0627\u0644\u0628\u062f\u0627\u064a\u0629 \u2014 \u0645\u062a\u0649 \u0648\u0623\u064a\u0646 \u0648\u064f\u0644\u062f\u062a\u061f",
+        "freeform_new": [
+            "\u0645\u0627 \u0627\u0644\u0642\u0635\u0629 \u0627\u0644\u062a\u064a \u062a\u0631\u064a\u062f \u0645\u0634\u0627\u0631\u0643\u062a\u0647\u0627\u060c {name}\u061f",
+            "\u0623\u0646\u0627 \u0623\u0633\u062a\u0645\u0639\u060c {name}. \u0639\u0645\u0627 \u062a\u0631\u064a\u062f \u0627\u0644\u062a\u062d\u062f\u062b\u061f",
+        ],
+        "freeform_return": [
+            "\u0623\u0647\u0644\u0627\u064b \u0628\u0639\u0648\u062f\u062a\u0643\u060c {name}. \u0645\u0627\u0630\u0627 \u062a\u0631\u064a\u062f \u0623\u0646 \u062a\u0634\u0627\u0631\u0643 \u0623\u064a\u0636\u064b\u0627\u061f",
+        ],
+        "guided_return": [
+            "\u0623\u0647\u0644\u0627\u064b \u0628\u0639\u0648\u062f\u062a\u0643\u060c {name}. \u0647\u0644 \u0644\u062f\u064a\u0643 \u0642\u0635\u0629 \u0623\u062e\u0631\u0649 \u0645\u0646 \u0647\u0630\u0627 \u0627\u0644\u0641\u0635\u0644\u061f",
+        ],
+    },
+    "hi": {
+        "first": "\u0924\u094b {name}, \u0936\u0941\u0930\u0942 \u0938\u0947 \u0936\u0941\u0930\u0942 \u0915\u0930\u0924\u0947 \u0939\u0948\u0902 \u2014 \u0906\u092a\u0915\u093e \u091c\u0928\u094d\u092e \u0915\u092c \u0914\u0930 \u0915\u0939\u093e\u0901 \u0939\u0941\u0906?",
+        "freeform_new": [
+            "{name}, \u0906\u092a \u0915\u094c\u0928 \u0938\u0940 \u0915\u0939\u093e\u0928\u0940 \u0938\u093e\u091d\u093e \u0915\u0930\u0928\u093e \u091a\u093e\u0939\u0947\u0902\u0917\u0947?",
+            "\u092e\u0948\u0902 \u0938\u0941\u0928 \u0930\u0939\u093e \u0939\u0942\u0901, {name}\u0964 \u0915\u094d\u092f\u093e \u092f\u093e\u0926 \u0906 \u0930\u0939\u093e \u0939\u0948?",
+        ],
+        "freeform_return": [
+            "\u0935\u093e\u092a\u0938 \u0938\u094d\u0935\u093e\u0917\u0924, {name}\u0964 \u0914\u0930 \u0915\u094d\u092f\u093e \u0938\u093e\u091d\u093e \u0915\u0930\u0928\u093e \u091a\u093e\u0939\u0947\u0902\u0917\u0947?",
+        ],
+        "guided_return": [
+            "\u0935\u093e\u092a\u0938 \u0938\u094d\u0935\u093e\u0917\u0924, {name}\u0964 \u0907\u0938 \u0905\u0927\u094d\u092f\u093e\u092f \u0938\u0947 \u0915\u094b\u0908 \u0914\u0930 \u0915\u0939\u093e\u0928\u0940?",
+        ],
+    },
+    "ru": {
+        "first": "\u0418\u0442\u0430\u043a, {name}, \u0434\u0430\u0432\u0430\u0439\u0442\u0435 \u043d\u0430\u0447\u043d\u0451\u043c \u0441 \u0441\u0430\u043c\u043e\u0433\u043e \u043d\u0430\u0447\u0430\u043b\u0430 \u2014 \u043a\u043e\u0433\u0434\u0430 \u0438 \u0433\u0434\u0435 \u0432\u044b \u0440\u043e\u0434\u0438\u043b\u0438\u0441\u044c?",
+        "freeform_new": [
+            "\u041a\u0430\u043a\u0443\u044e \u0438\u0441\u0442\u043e\u0440\u0438\u044e \u0432\u044b \u0445\u043e\u0442\u0438\u0442\u0435 \u0440\u0430\u0441\u0441\u043a\u0430\u0437\u0430\u0442\u044c, {name}?",
+            "\u0421\u043b\u0443\u0448\u0430\u044e, {name}. \u041e \u0447\u0451\u043c \u0445\u043e\u0442\u0438\u0442\u0435 \u043f\u043e\u0433\u043e\u0432\u043e\u0440\u0438\u0442\u044c?",
+        ],
+        "freeform_return": [
+            "\u0421 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0435\u043d\u0438\u0435\u043c, {name}. \u0427\u0442\u043e \u0435\u0449\u0451 \u0445\u043e\u0442\u0438\u0442\u0435 \u0440\u0430\u0441\u0441\u043a\u0430\u0437\u0430\u0442\u044c?",
+        ],
+        "guided_return": [
+            "\u0421 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0435\u043d\u0438\u0435\u043c, {name}. \u0415\u0441\u0442\u044c \u0435\u0449\u0451 \u0438\u0441\u0442\u043e\u0440\u0438\u044f \u0438\u0437 \u044d\u0442\u043e\u0439 \u0433\u043b\u0430\u0432\u044b?",
+        ],
+    },
+    "tr": {
+        "first": "{name}, en ba\u015f\u0131ndan ba\u015flayal\u0131m \u2014 ne zaman ve nerede do\u011fdun?",
+        "freeform_new": [
+            "Hangi hikayeyi payla\u015fmak istersin, {name}?",
+            "Dinliyorum, {name}. Ne anlatmak istersin?",
+        ],
+        "freeform_return": [
+            "Tekrar ho\u015f geldin, {name}. Ba\u015fka ne payla\u015fmak istersin?",
+        ],
+        "guided_return": [
+            "Tekrar ho\u015f geldin, {name}. Bu b\u00f6l\u00fcmden ba\u015fka bir hikayen var m\u0131?",
+        ],
+    },
+    "nl": {
+        "first": "Zo {name}, laten we bij het begin beginnen \u2014 wanneer en waar ben je geboren?",
+        "freeform_new": [
+            "Welk verhaal wil je delen, {name}?",
+            "Ik luister, {name}. Waar wil je over praten?",
+        ],
+        "freeform_return": [
+            "Welkom terug, {name}. Wat wil je nog meer delen?",
+        ],
+        "guided_return": [
+            "Welkom terug, {name}. Nog een verhaal uit dit hoofdstuk?",
+        ],
+    },
+    "pl": {
+        "first": "Wi\u0119c {name}, zacznijmy od pocz\u0105tku \u2014 kiedy i gdzie si\u0119 urodzi\u0142e\u015b/a\u015b?",
+        "freeform_new": [
+            "Jak\u0105 histori\u0119 chcesz opowiedzie\u0107, {name}?",
+            "S\u0142ucham, {name}. O czym chcesz porozmawia\u0107?",
+        ],
+        "freeform_return": [
+            "Witaj z powrotem, {name}. Co jeszcze chcesz opowiedzie\u0107?",
+        ],
+        "guided_return": [
+            "Witaj z powrotem, {name}. Masz jeszcze jak\u0105\u015b histori\u0119 z tego rozdzia\u0142u?",
+        ],
+    },
+    "uk": {
+        "first": "\u0422\u043e\u0436 {name}, \u043f\u043e\u0447\u043d\u0456\u043c\u043e \u0437 \u043f\u043e\u0447\u0430\u0442\u043a\u0443 \u2014 \u043a\u043e\u043b\u0438 \u0456 \u0434\u0435 \u0432\u0438 \u043d\u0430\u0440\u043e\u0434\u0438\u043b\u0438\u0441\u044f?",
+        "freeform_new": ["\u042f\u043a\u0443 \u0456\u0441\u0442\u043e\u0440\u0456\u044e \u0432\u0438 \u0445\u043e\u0447\u0435\u0442\u0435 \u0440\u043e\u0437\u043f\u043e\u0432\u0456\u0441\u0442\u0438, {name}?"],
+        "freeform_return": ["\u0417 \u043f\u043e\u0432\u0435\u0440\u043d\u0435\u043d\u043d\u044f\u043c, {name}. \u0429\u043e \u0449\u0435 \u0445\u043e\u0447\u0435\u0442\u0435 \u0440\u043e\u0437\u043f\u043e\u0432\u0456\u0441\u0442\u0438?"],
+        "guided_return": ["\u0417 \u043f\u043e\u0432\u0435\u0440\u043d\u0435\u043d\u043d\u044f\u043c, {name}. \u0404 \u0449\u0435 \u0456\u0441\u0442\u043e\u0440\u0456\u044f \u0437 \u0446\u044c\u043e\u0433\u043e \u0440\u043e\u0437\u0434\u0456\u043b\u0443?"],
+    },
+    "sv": {
+        "first": "S\u00e5 {name}, l\u00e5t oss b\u00f6rja fr\u00e5n b\u00f6rjan \u2014 n\u00e4r och var \u00e4r du f\u00f6dd?",
+        "freeform_new": ["Vilken ber\u00e4ttelse vill du dela, {name}?"],
+        "freeform_return": ["V\u00e4lkommen tillbaka, {name}. Vad mer vill du ber\u00e4tta?"],
+        "guided_return": ["V\u00e4lkommen tillbaka, {name}. N\u00e5gon mer ber\u00e4ttelse fr\u00e5n det h\u00e4r kapitlet?"],
+    },
+    "da": {
+        "first": "S\u00e5 {name}, lad os starte fra begyndelsen \u2014 hvorn\u00e5r og hvor er du f\u00f8dt?",
+        "freeform_new": ["Hvilken historie vil du dele, {name}?"],
+        "freeform_return": ["Velkommen tilbage, {name}. Hvad mere vil du fort\u00e6lle?"],
+        "guided_return": ["Velkommen tilbage, {name}. Endnu en historie fra dette kapitel?"],
+    },
+    "fi": {
+        "first": "No niin {name}, aloitetaan alusta \u2014 milloin ja miss\u00e4 synnyit?",
+        "freeform_new": ["Mink\u00e4 tarinan haluaisit jakaa, {name}?"],
+        "freeform_return": ["Tervetuloa takaisin, {name}. Mit\u00e4 muuta haluaisit kertoa?"],
+        "guided_return": ["Tervetuloa takaisin, {name}. Viel\u00e4 yksi tarina t\u00e4st\u00e4 luvusta?"],
+    },
+    "no": {
+        "first": "S\u00e5 {name}, la oss starte fra begynnelsen \u2014 n\u00e5r og hvor ble du f\u00f8dt?",
+        "freeform_new": ["Hvilken historie vil du dele, {name}?"],
+        "freeform_return": ["Velkommen tilbake, {name}. Hva mer vil du fortelle?"],
+        "guided_return": ["Velkommen tilbake, {name}. En historie til fra dette kapittelet?"],
+    },
+    "ro": {
+        "first": "Ei bine {name}, s\u0103 \u00eencepem de la \u00eenceput \u2014 c\u00e2nd \u0219i unde te-ai n\u0103scut?",
+        "freeform_new": ["Ce poveste ai vrea s\u0103 \u00eempart\u0103\u0219e\u0219ti, {name}?"],
+        "freeform_return": ["Bine ai revenit, {name}. Ce altceva ai vrea s\u0103 \u00eempart\u0103\u0219e\u0219ti?"],
+        "guided_return": ["Bine ai revenit, {name}. Mai ai o poveste din acest capitol?"],
+    },
+    "el": {
+        "first": "\u039b\u03bf\u03b9\u03c0\u03cc\u03bd {name}, \u03b1\u03c2 \u03be\u03b5\u03ba\u03b9\u03bd\u03ae\u03c3\u03bf\u03c5\u03bc\u03b5 \u03b1\u03c0\u03cc \u03c4\u03b7\u03bd \u03b1\u03c1\u03c7\u03ae \u2014 \u03c0\u03cc\u03c4\u03b5 \u03ba\u03b1\u03b9 \u03c0\u03bf\u03cd \u03b3\u03b5\u03bd\u03bd\u03ae\u03b8\u03b7\u03ba\u03b5\u03c2;",
+        "freeform_new": ["\u03a0\u03bf\u03b9\u03b1 \u03b9\u03c3\u03c4\u03bf\u03c1\u03af\u03b1 \u03b8\u03b1 \u03ae\u03b8\u03b5\u03bb\u03b5\u03c2 \u03bd\u03b1 \u03bc\u03bf\u03b9\u03c1\u03b1\u03c3\u03c4\u03b5\u03af\u03c2, {name};"],
+        "freeform_return": ["\u039a\u03b1\u03bb\u03ce\u03c2 \u03ae\u03c1\u03b8\u03b5\u03c2 \u03c0\u03af\u03c3\u03c9, {name}. \u03a4\u03b9 \u03ac\u03bb\u03bb\u03bf \u03b8\u03b1 \u03ae\u03b8\u03b5\u03bb\u03b5\u03c2 \u03bd\u03b1 \u03bc\u03bf\u03b9\u03c1\u03b1\u03c3\u03c4\u03b5\u03af\u03c2;"],
+        "guided_return": ["\u039a\u03b1\u03bb\u03ce\u03c2 \u03ae\u03c1\u03b8\u03b5\u03c2 \u03c0\u03af\u03c3\u03c9, {name}. \u0386\u03bb\u03bb\u03b7 \u03b9\u03c3\u03c4\u03bf\u03c1\u03af\u03b1 \u03b1\u03c0\u03cc \u03b1\u03c5\u03c4\u03cc \u03c4\u03bf \u03ba\u03b5\u03c6\u03ac\u03bb\u03b1\u03b9\u03bf;"],
+    },
+    "cs": {
+        "first": "Tak\u017ee {name}, za\u010dn\u011bme od za\u010d\u00e1tku \u2014 kdy a kde jste se narodil/a?",
+        "freeform_new": ["Jak\u00fd p\u0159\u00edb\u011bh byste cht\u011bl/a sd\u00edlet, {name}?"],
+        "freeform_return": ["V\u00edtejte zp\u011bt, {name}. Co dal\u0161\u00edho byste cht\u011bl/a vypr\u00e1v\u011bt?"],
+        "guided_return": ["V\u00edtejte zp\u011bt, {name}. Je\u0161t\u011b n\u011bjak\u00fd p\u0159\u00edb\u011bh z t\u00e9to kapitoly?"],
+    },
+    "sk": {
+        "first": "Tak\u017ee {name}, za\u010dnime od za\u010diatku \u2014 kedy a kde ste sa narodili?",
+        "freeform_new": ["Ak\u00fd pr\u00edbeh by ste chceli zdie\u013ea\u0165, {name}?"],
+        "freeform_return": ["Vitajte sp\u00e4\u0165, {name}. \u010co \u010fal\u0161ie by ste chceli porozpr\u00e1va\u0165?"],
+        "guided_return": ["Vitajte sp\u00e4\u0165, {name}. E\u0161te nejak\u00fd pr\u00edbeh z tejto kapitoly?"],
+    },
+    "bg": {
+        "first": "\u0418 \u0442\u0430\u043a\u0430 {name}, \u0434\u0430 \u0437\u0430\u043f\u043e\u0447\u043d\u0435\u043c \u043e\u0442\u043d\u0430\u0447\u0430\u043b\u043e \u2014 \u043a\u043e\u0433\u0430 \u0438 \u043a\u044a\u0434\u0435 \u0441\u0438 \u0440\u043e\u0434\u0435\u043d/\u0430?",
+        "freeform_new": ["\u041a\u0430\u043a\u0432\u0430 \u0438\u0441\u0442\u043e\u0440\u0438\u044f \u0438\u0441\u043a\u0430\u0448 \u0434\u0430 \u0441\u043f\u043e\u0434\u0435\u043b\u0438\u0448, {name}?"],
+        "freeform_return": ["\u0414\u043e\u0431\u0440\u0435 \u0434\u043e\u0448\u044a\u043b \u043e\u0431\u0440\u0430\u0442\u043d\u043e, {name}. \u041a\u0430\u043a\u0432\u043e \u0434\u0440\u0443\u0433\u043e \u0438\u0441\u043a\u0430\u0448 \u0434\u0430 \u0440\u0430\u0437\u043a\u0430\u0436\u0435\u0448?"],
+        "guided_return": ["\u0414\u043e\u0431\u0440\u0435 \u0434\u043e\u0448\u044a\u043b \u043e\u0431\u0440\u0430\u0442\u043d\u043e, {name}. \u0418\u043c\u0430 \u043b\u0438 \u0434\u0440\u0443\u0433\u0430 \u0438\u0441\u0442\u043e\u0440\u0438\u044f \u043e\u0442 \u0442\u0430\u0437\u0438 \u0433\u043b\u0430\u0432\u0430?"],
+    },
+    "hr": {
+        "first": "Dakle {name}, krenimo od po\u010detka \u2014 kada i gdje si ro\u0111en/a?",
+        "freeform_new": ["Koju pri\u010du \u017eeli\u0161 podijeliti, {name}?"],
+        "freeform_return": ["Dobro do\u0161ao/la natrag, {name}. \u0160to jo\u0161 \u017eeli\u0161 ispri\u010dati?"],
+        "guided_return": ["Dobro do\u0161ao/la natrag, {name}. Jo\u0161 jedna pri\u010da iz ovog poglavlja?"],
+    },
+    "hu": {
+        "first": "Nos {name}, kezdj\u00fck az elej\u00e9n \u2014 mikor \u00e9s hol sz\u00fclett\u00e9l?",
+        "freeform_new": ["Milyen t\u00f6rt\u00e9netet szeretn\u00e9l megosztani, {name}?"],
+        "freeform_return": ["\u00ddjra itt vagy, {name}. Mit szeretn\u00e9l m\u00e9g megosztani?"],
+        "guided_return": ["\u00ddjra itt vagy, {name}. Van m\u00e9g egy t\u00f6rt\u00e9neted ebb\u0151l a fejezetb\u0151l?"],
+    },
+    "ta": {
+        "first": "{name}, \u0ba4\u0bc1\u0bb5\u0b95\u0bcd\u0b95\u0ba4\u0bcd\u0ba4\u0bbf\u0bb2\u0bcd \u0b87\u0bb0\u0bc1\u0ba8\u0bcd\u0ba4\u0bc7 \u0ba4\u0bca\u0b9f\u0b99\u0bcd\u0b95\u0bc1\u0bb5\u0bcb\u0bae\u0bcd \u2014 \u0ba8\u0bc0\u0b99\u0bcd\u0b95\u0bb3\u0bcd \u0b8e\u0baa\u0bcd\u0baa\u0bcb\u0ba4\u0bc1, \u0b8e\u0b99\u0bcd\u0b95\u0bc7 \u0baa\u0bbf\u0bb1\u0ba8\u0bcd\u0ba4\u0bc0\u0bb0\u0bcd\u0b95\u0bb3\u0bcd?",
+        "freeform_new": ["\u0b8e\u0ba8\u0bcd\u0ba4 \u0b95\u0ba4\u0bc8\u0baf\u0bc8 \u0baa\u0b95\u0bbf\u0bb0 \u0bb5\u0bbf\u0bb0\u0bc1\u0bae\u0bcd\u0baa\u0bc1\u0b95\u0bbf\u0bb1\u0bc0\u0bb0\u0bcd\u0b95\u0bb3\u0bcd, {name}?"],
+        "freeform_return": ["\u0bae\u0bc0\u0ba3\u0bcd\u0b9f\u0bc1\u0bae\u0bcd \u0bb5\u0bb0\u0bb5\u0bc7\u0bb1\u0bcd\u0b95\u0bbf\u0bb1\u0bc7\u0ba9\u0bcd, {name}. \u0bb5\u0bc7\u0bb1\u0bc1 \u0b8e\u0ba9\u0bcd\u0ba9 \u0baa\u0b95\u0bbf\u0bb0 \u0bb5\u0bbf\u0bb0\u0bc1\u0bae\u0bcd\u0baa\u0bc1\u0b95\u0bbf\u0bb1\u0bc0\u0bb0\u0bcd\u0b95\u0bb3\u0bcd?"],
+        "guided_return": ["\u0bae\u0bc0\u0ba3\u0bcd\u0b9f\u0bc1\u0bae\u0bcd \u0bb5\u0bb0\u0bb5\u0bc7\u0bb1\u0bcd\u0b95\u0bbf\u0bb1\u0bc7\u0ba9\u0bcd, {name}. \u0b87\u0ba8\u0bcd\u0ba4 \u0b85\u0ba4\u0bcd\u0ba4\u0bbf\u0baf\u0bbe\u0baf\u0ba4\u0bcd\u0ba4\u0bbf\u0bb2\u0bcd \u0b87\u0bb0\u0bc1\u0ba8\u0bcd\u0ba4\u0bc1 \u0bb5\u0bc7\u0bb1\u0bc1 \u0b95\u0ba4\u0bc8?"],
+    },
+    "id": {
+        "first": "Jadi {name}, mari mulai dari awal \u2014 kapan dan di mana kamu lahir?",
+        "freeform_new": ["Cerita apa yang ingin kamu bagikan, {name}?"],
+        "freeform_return": ["Selamat datang kembali, {name}. Apa lagi yang ingin kamu ceritakan?"],
+        "guided_return": ["Selamat datang kembali, {name}. Ada cerita lain dari bab ini?"],
+    },
+    "ms": {
+        "first": "Jadi {name}, mari kita mula dari awal \u2014 bila dan di mana anda dilahirkan?",
+        "freeform_new": ["Cerita apa yang anda ingin kongsi, {name}?"],
+        "freeform_return": ["Selamat kembali, {name}. Apa lagi yang ingin anda kongsi?"],
+        "guided_return": ["Selamat kembali, {name}. Ada cerita lain dari bab ini?"],
+    },
+    "fil": {
+        "first": "So {name}, magsimula tayo sa pinakasimula \u2014 kailan at saan ka ipinanganak?",
+        "freeform_new": ["Anong kuwento ang gusto mong ibahagi, {name}?"],
+        "freeform_return": ["Welcome back, {name}. Ano pa ang gusto mong ikuwento?"],
+        "guided_return": ["Welcome back, {name}. May iba pa bang kuwento mula sa kabanatang ito?"],
+    },
+    "vi": {
+        "first": "V\u1eady {name}, h\u00e3y b\u1eaft \u0111\u1ea7u t\u1eeb \u0111\u1ea7u nh\u00e9 \u2014 b\u1ea1n sinh khi n\u00e0o v\u00e0 \u1edf \u0111\u00e2u?",
+        "freeform_new": ["B\u1ea1n mu\u1ed1n chia s\u1ebb c\u00e2u chuy\u1ec7n g\u00ec, {name}?"],
+        "freeform_return": ["Ch\u00e0o m\u1eebng tr\u1edf l\u1ea1i, {name}. B\u1ea1n c\u00f2n mu\u1ed1n k\u1ec3 g\u00ec n\u1eefa kh\u00f4ng?"],
+        "guided_return": ["Ch\u00e0o m\u1eebng tr\u1edf l\u1ea1i, {name}. C\u00f2n c\u00e2u chuy\u1ec7n n\u00e0o kh\u00e1c t\u1eeb ch\u01b0\u01a1ng n\u00e0y kh\u00f4ng?"],
+    },
+    "th": {
+        "first": "{name} \u0e40\u0e23\u0e32\u0e40\u0e23\u0e34\u0e48\u0e21\u0e01\u0e31\u0e19\u0e15\u0e31\u0e49\u0e07\u0e41\u0e15\u0e48\u0e15\u0e49\u0e19\u0e40\u0e25\u0e22\u0e19\u0e30 \u2014 \u0e04\u0e38\u0e13\u0e40\u0e01\u0e34\u0e14\u0e40\u0e21\u0e37\u0e48\u0e2d\u0e44\u0e2b\u0e23\u0e48\u0e41\u0e25\u0e30\u0e17\u0e35\u0e48\u0e44\u0e2b\u0e19?",
+        "freeform_new": ["\u0e04\u0e38\u0e13\u0e2d\u0e22\u0e32\u0e01\u0e40\u0e25\u0e48\u0e32\u0e40\u0e23\u0e37\u0e48\u0e2d\u0e07\u0e2d\u0e30\u0e44\u0e23, {name}?"],
+        "freeform_return": ["\u0e22\u0e34\u0e19\u0e14\u0e35\u0e15\u0e49\u0e2d\u0e19\u0e23\u0e31\u0e1a\u0e01\u0e25\u0e31\u0e1a\u0e21\u0e32, {name} \u0e2d\u0e22\u0e32\u0e01\u0e40\u0e25\u0e48\u0e32\u0e2d\u0e30\u0e44\u0e23\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e40\u0e15\u0e34\u0e21\u0e44\u0e2b\u0e21?"],
+        "guided_return": ["\u0e22\u0e34\u0e19\u0e14\u0e35\u0e15\u0e49\u0e2d\u0e19\u0e23\u0e31\u0e1a\u0e01\u0e25\u0e31\u0e1a\u0e21\u0e32, {name} \u0e21\u0e35\u0e40\u0e23\u0e37\u0e48\u0e2d\u0e07\u0e2d\u0e37\u0e48\u0e19\u0e08\u0e32\u0e01\u0e1a\u0e17\u0e19\u0e35\u0e49\u0e44\u0e2b\u0e21?"],
+    },
+}
+
+
+def _get_opener(language: str, key: str, name: str) -> str:
+    """Get a pre-written opener in the given language. Falls back to English."""
+    lang_data = _OPENERS.get(language, _OPENERS["en"])
+    if key == "first":
+        return lang_data["first"].format(name=name)
+    options = lang_data.get(key, _OPENERS["en"][key])
+    return random.choice(options).format(name=name)
+
+
 def get_opening_message(
     chapter_index: int,
     person_name: str,
     prior_context: list[str] | None = None,
     custom_chapter_title: str | None = None,
+    language: str = "en",
 ) -> str:
-    """Generate the AI's opening message for a new chapter conversation."""
-    model = llm.get_model(MODEL_ID)
+    """Generate the AI's opening message for a new chapter conversation.
 
+    Always returns a pre-written opener instantly (no LLM call).
+    Openers are available in all 33 supported languages.
+    """
     has_prior = prior_context and len(prior_context) > 0
+    lang = language or "en"
 
-    # Freeform / custom chapter
+    # First guided chapter, first time
+    if chapter_index == 0 and not has_prior and custom_chapter_title is None:
+        return _get_opener(lang, "first", person_name)
+
+    # Freeform / custom chapter / open-ended stories
     if custom_chapter_title is not None or chapter_index == -1:
-        title = custom_chapter_title or "their story"
-        if has_prior:
-            system = f"""You're having a conversation with {person_name} about "{title}". They've talked about this before and are back to share more.
+        key = "freeform_return" if has_prior else "freeform_new"
+        return _get_opener(lang, key, person_name)
 
-Write ONE short sentence welcoming them back. Don't summarize. Keep it simple."""
-        else:
-            system = f"""You're having a conversation with {person_name}. They want to tell a story about "{title}".
-
-Write ONE short, inviting sentence to get started. Something like "So, tell me about it." or "What comes to mind?" Keep it simple and direct. Don't ask a specific question — let them lead."""
-        response = model.prompt("Begin the conversation.", system=system)
-        return response.text().strip()
-
-    chapter = CHAPTERS[chapter_index]
-
-    # Build a summary of what this chapter covers vs other chapters
-    questions_summary = ", ".join(q["text"].lower().rstrip("?") for q in chapter["questions"][:3])
-
+    # Guided chapter with prior stories (additional story in same chapter)
     if has_prior:
-        system = f"""You're having a conversation with {person_name} about their life, specifically "{chapter['title']}". They've talked about this before and are back to share more.
+        return _get_opener(lang, "guided_return", person_name)
 
-Write ONE short sentence welcoming them back. Something like "Hey, welcome back." or "Good to pick this up again." Don't be flowery. Don't summarize. Don't ask a question yet."""
-    else:
-        system = f"""You're having a conversation with {person_name} about their life. You're starting on "{chapter['title']}" — {chapter['subtitle']}.
-
-This chapter is specifically about: {questions_summary}. Stay on THIS chapter's topic — don't ask about things covered in other chapters.
-
-Write ONE short, simple sentence to get started. Something plain and direct that fits this specific chapter topic. Not dramatic, not poetic, not a paragraph. One sentence, no more."""
-
-    response = model.prompt("Begin the conversation.", system=system)
-    return response.text().strip()
+    # Guided chapter, first time (chapters 1+) — use the chapter's first question
+    chapter = CHAPTERS[chapter_index]
+    first_q = chapter["questions"][0]["text"]
+    return f"{person_name}, {first_q.lower()}" if first_q[0].isupper() else f"{person_name}, {first_q}"
 
 
 def chat(
@@ -340,6 +700,7 @@ def chat(
     user_message: str,
     prior_context: list[str] | None = None,
     custom_chapter_title: str | None = None,
+    language: str = "en",
 ) -> tuple[str, list[dict]]:
     """Send a message and get AI response. Returns (ai_response, updated_messages)."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -350,7 +711,7 @@ def chat(
     # For custom chapters, use freeform prompt
     effective_index = -1 if custom_chapter_title is not None else chapter_index
     existing_answers = extract_answers(effective_index, messages)
-    system = _build_system_prompt(effective_index, person_name, existing_answers, prior_context)
+    system = _build_system_prompt(effective_index, person_name, existing_answers, prior_context, language=language)
     model = llm.get_model(MODEL_ID)
 
     # Build the LLM conversation
@@ -375,7 +736,7 @@ def chat(
 
     # Polish the user's message for the book
     user_msg = messages[-1]  # the user message we just appended
-    polished = polish_message(user_msg["content"])
+    polished = polish_message(user_msg["content"], language=language)
     if polished != user_msg["content"]:
         user_msg["polished"] = polished
 
@@ -415,10 +776,12 @@ def extract_answers(chapter_index: int, messages: list[dict]) -> dict:
     return {}
 
 
-def polish_message(text: str) -> str:
+def polish_message(text: str, language: str = "en") -> str:
     """Clean up a spoken/transcribed message for readability. Preserves meaning and voice."""
     model = llm.get_model(MODEL_ID)
-    system = """Lightly clean up this transcribed speech for a life story book. Fix grammar, remove filler words (um, uh, like, you know), and improve sentence structure. Keep the person's voice and personality — don't make it formal or literary. Keep it in first person. If it's already clean, return it unchanged. Return ONLY the cleaned text, nothing else."""
+    lang_name = LANGUAGE_NAMES.get(language, "English") if language and language != "en" else ""
+    lang_note = f" The text is in {lang_name} — keep it in {lang_name}." if lang_name else ""
+    system = f"""Lightly clean up this transcribed speech for a life story book. Fix grammar, remove filler words (um, uh, like, you know), and improve sentence structure. Keep the person's voice and personality — don't make it formal or literary. Keep it in first person. If it's already clean, return it unchanged. Return ONLY the cleaned text, nothing else.{lang_note}"""
     try:
         response = model.prompt(text, system=system)
         polished = response.text().strip()

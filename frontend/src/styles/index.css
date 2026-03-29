@@ -3250,3 +3250,132 @@ body::after {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--brown-muted); }
+
+/* ---- Language Selector ---- */
+.language-selector {
+  position: fixed;
+  top: 12px;
+  right: 72px;
+  z-index: 1000;
+}
+
+.language-selector-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--brown);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+
+.language-selector-btn:hover {
+  border-color: var(--brown-muted);
+  box-shadow: var(--shadow-md);
+}
+
+.language-flag {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.language-code {
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.language-chevron {
+  font-size: 10px;
+  color: var(--brown-muted);
+}
+
+.language-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  max-height: 360px;
+  overflow-y: auto;
+  min-width: 200px;
+  padding: 4px;
+}
+
+.language-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--brown);
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.language-option:hover {
+  background: var(--cream-dark);
+}
+
+.language-option.active {
+  background: var(--cream-dark);
+  font-weight: 600;
+}
+
+.language-option-name {
+  flex: 1;
+}
+
+.language-check {
+  color: var(--sage);
+  font-weight: 700;
+}
+
+/* Language badge on books */
+.library-book-lang {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.library-book {
+  position: relative;
+}
+
+/* Responsive: smaller screens */
+@media (max-width: 600px) {
+  .language-selector {
+    top: 8px;
+    right: 60px;
+  }
+
+  .language-selector-btn {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  .language-flag {
+    font-size: 14px;
+  }
+
+  .language-dropdown {
+    max-height: 300px;
+    min-width: 180px;
+  }
+}
