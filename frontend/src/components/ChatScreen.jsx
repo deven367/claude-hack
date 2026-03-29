@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { CHAPTERS } from '../data/chapters'
 import { api } from '../utils/api'
+import { useLanguage } from '../contexts/LanguageContext'
 
 export default function ChatScreen({ personName, storyId, initialChapter = 0, freeform = false, muted = false, onSetMuted, onGoHome, onOpenReader }) {
+  const { language, t } = useLanguage()
   const [currentChapter, setCurrentChapter] = useState(freeform ? null : initialChapter)
   const [messages, setMessages] = useState([])
   const [extractedAnswers, setExtractedAnswers] = useState({})
@@ -59,7 +61,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
       const chapters = await api('GET', `/api/stories/${storyId}/custom-chapters`)
       if (chapters.length === 0) {
         // Auto-create first chapter
-        const ch = await api('POST', `/api/stories/${storyId}/custom-chapters`, { title: 'Chapter 1' })
+        const ch = await api('POST', `/api/stories/${storyId}/custom-chapters`, { title: `${t('chat.chapterN')} 1` })
         setCustomChapters([ch])
         setCurrentChapter(ch.id)
       } else {
@@ -94,6 +96,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
           message: '',
           person_name: personName,
           custom_chapter_title: freeform ? (currentCustomChapter?.title || null) : undefined,
+          language,
         })
         if (cancelled) return
         setMessages(result.messages || [])
@@ -178,6 +181,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
         message: text,
         person_name: personName,
         custom_chapter_title: freeform ? (currentCustomChapter?.title || null) : undefined,
+        language,
       })
 
       setMessages(result.messages || [])
@@ -194,11 +198,11 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
     } catch (err) {
       setMessages(prev => [
         ...prev.slice(0, -1),
-        { role: 'system', content: 'Something went wrong. Please try again.', timestamp: '' }
+        { role: 'system', content: t('chat.somethingWentWrong'), timestamp: '' }
       ])
       setPhase('idle')
     }
-  }, [storyId, currentChapter, conversationId, personName, freeform, currentCustomChapter?.title, muted, playTTS])
+  }, [storyId, currentChapter, conversationId, personName, freeform, currentCustomChapter?.title, muted, playTTS, language, t])
 
   const toggleRecording = useCallback(async () => {
     if (recording) {
@@ -284,7 +288,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
 
   // Custom chapter management (freeform)
   const addCustomChapter = useCallback(async () => {
-    const title = `Chapter ${customChapters.length + 1}`
+    const title = `${t('chat.chapterN')} ${customChapters.length + 1}`
     const ch = await api('POST', `/api/stories/${storyId}/custom-chapters`, { title })
     setCustomChapters(prev => [...prev, ch])
     setCurrentChapter(ch.id)
@@ -292,7 +296,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
     setExtractedAnswers({})
     setConversationId(null)
     setChapterSessions([])
-  }, [storyId, customChapters.length])
+  }, [storyId, customChapters.length, t])
 
   const renameCustomChapter = useCallback(async (chapterId, title) => {
     await api('PUT', `/api/custom-chapters/${chapterId}`, { title })
@@ -340,6 +344,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
       const result = await api('POST', `/api/conversations/${storyId}/${currentChapter}/new`, {
         person_name: personName,
         custom_chapter_title: freeform ? (currentCustomChapter?.title || null) : undefined,
+        language,
       })
       setMessages(result.messages || [])
       setExtractedAnswers(result.extracted_answers || {})
@@ -351,7 +356,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
       // stay on current
     }
     setLoading(false)
-  }, [phase, storyId, currentChapter, personName, sessionCount])
+  }, [phase, storyId, currentChapter, personName, sessionCount, language])
 
   const getChapterStatus = (index) => {
     const p = chapterProgress[index]
@@ -372,7 +377,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
       {/* Chapter sidebar — works for both guided and freeform */}
       <aside className={`chat-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="chat-sidebar-header">
-          <h3 className="chat-sidebar-title">{freeform ? 'Your Chapters' : 'Chapters'}</h3>
+          <h3 className="chat-sidebar-title">{freeform ? t('chat.yourChapters') : t('chat.chapters')}</h3>
           <button className="chat-sidebar-close" onClick={() => setSidebarOpen(false)}>{'\u2715'}</button>
         </div>
         <nav className="chat-chapter-list">
@@ -392,8 +397,8 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
                     <span className="chat-chapter-name">{ch.title}</span>
                     <span className="chat-chapter-status">
                       {status === 'in_progress'
-                        ? `${progress?.sessionCount || 1} ${(progress?.sessionCount || 1) === 1 ? 'story' : 'stories'}`
-                        : 'Not started'}
+                        ? `${progress?.sessionCount || 1} ${(progress?.sessionCount || 1) === 1 ? t('common.story') : t('common.stories')}`
+                        : t('chat.notStarted')}
                     </span>
                   </div>
                 </button>
@@ -403,9 +408,9 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
                       <div key={sess.conversation_id}>
                         {confirmDeleteSession === sess.conversation_id ? (
                           <div className="chat-session-confirm">
-                            <span>Delete?</span>
-                            <button onClick={() => { deleteSession(sess.conversation_id); setConfirmDeleteSession(null) }}>Yes</button>
-                            <button onClick={() => setConfirmDeleteSession(null)}>No</button>
+                            <span>{t('common.delete')}</span>
+                            <button onClick={() => { deleteSession(sess.conversation_id); setConfirmDeleteSession(null) }}>{t('common.yes')}</button>
+                            <button onClick={() => setConfirmDeleteSession(null)}>{t('common.no')}</button>
                           </div>
                         ) : renamingSession === sess.conversation_id ? (
                           <div className="chat-session-item active">
@@ -425,9 +430,9 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
                           <button
                             className={`chat-session-item ${sess.conversation_id === conversationId ? 'active' : ''}`}
                             onClick={() => switchSession(sess.conversation_id)}
-                            onDoubleClick={(e) => { e.stopPropagation(); setRenamingSession(sess.conversation_id); setSessionRenameValue(sess.title || `Story ${si + 1}`) }}
+                            onDoubleClick={(e) => { e.stopPropagation(); setRenamingSession(sess.conversation_id); setSessionRenameValue(sess.title || `${t('chat.storyN')} ${si + 1}`) }}
                           >
-                            {sess.title || `Story ${si + 1}`}
+                            {sess.title || `${t('chat.storyN')} ${si + 1}`}
                             {chapterSessions.length > 1 && (
                               <span
                                 className="chat-session-delete"
@@ -439,7 +444,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
                       </div>
                     ))}
                     <button className="chat-session-new" onClick={startNewStory} disabled={isBusy}>
-                      + Start New Story
+                      {t('chat.startNewStory')}
                     </button>
                   </div>
                 )}
@@ -501,9 +506,9 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
                       <div key={sess.conversation_id}>
                         {confirmDeleteSession === sess.conversation_id ? (
                           <div className="chat-session-confirm">
-                            <span>Delete?</span>
-                            <button onClick={() => { deleteSession(sess.conversation_id); setConfirmDeleteSession(null) }}>Yes</button>
-                            <button onClick={() => setConfirmDeleteSession(null)}>No</button>
+                            <span>{t('common.delete')}</span>
+                            <button onClick={() => { deleteSession(sess.conversation_id); setConfirmDeleteSession(null) }}>{t('common.yes')}</button>
+                            <button onClick={() => setConfirmDeleteSession(null)}>{t('common.no')}</button>
                           </div>
                         ) : renamingSession === sess.conversation_id ? (
                           <div className="chat-session-item active">
@@ -523,9 +528,9 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
                           <button
                             className={`chat-session-item ${sess.conversation_id === conversationId ? 'active' : ''}`}
                             onClick={() => switchSession(sess.conversation_id)}
-                            onDoubleClick={(e) => { e.stopPropagation(); setRenamingSession(sess.conversation_id); setSessionRenameValue(sess.title || `Story ${si + 1}`) }}
+                            onDoubleClick={(e) => { e.stopPropagation(); setRenamingSession(sess.conversation_id); setSessionRenameValue(sess.title || `${t('chat.storyN')} ${si + 1}`) }}
                           >
-                            {sess.title || `Story ${si + 1}`}
+                            {sess.title || `${t('chat.storyN')} ${si + 1}`}
                             {chapterSessions.length > 1 && (
                               <span
                                 className="chat-session-delete"
@@ -537,7 +542,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
                       </div>
                     ))}
                     <button className="chat-session-new" onClick={startNewStory} disabled={isBusy}>
-                      + Start New Story
+                      {t('chat.startNewStory')}
                     </button>
                   </div>
                 )}
@@ -548,7 +553,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
           {/* Add chapter button (freeform only) */}
           {freeform && (
             <button className="chat-session-new" style={{ marginLeft: '1.25rem', marginTop: '0.5rem' }} onClick={addCustomChapter}>
-              + Add Chapter
+              {t('chat.addChapter')}
             </button>
           )}
         </nav>
@@ -559,16 +564,16 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
         {/* Header */}
         <header className="chat-header">
           <div className="chat-header-left">
-            <button className="chat-menu-btn" onClick={() => setSidebarOpen(true)} title="Chapters">
+            <button className="chat-menu-btn" onClick={() => setSidebarOpen(true)} title={t('chat.chapters')}>
               {'\u2630'}
             </button>
-            <button className="chat-back-btn" onClick={onGoHome} title="Back to home">{'\u2190'}</button>
+            <button className="chat-back-btn" onClick={onGoHome} title={t('chat.backToHome')}>{'\u2190'}</button>
           </div>
           <div className="chat-header-center">
             {freeform ? (
               <div>
-                <h2 className="chat-header-title">{currentCustomChapter?.title || 'Your Story'}</h2>
-                <span className="chat-header-progress">{personName}{'\u2019'}s Story</span>
+                <h2 className="chat-header-title">{currentCustomChapter?.title || t('chat.yourStory')}</h2>
+                <span className="chat-header-progress">{personName}{t('chat.personStory')}</span>
               </div>
             ) : (
               <>
@@ -576,7 +581,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
                 <div>
                   <h2 className="chat-header-title">{chapter.title}</h2>
                   <span className="chat-header-progress">
-                    {sessionCount > 1 ? `Story ${sessionCount}` : chapter.subtitle}
+                    {sessionCount > 1 ? `${t('chat.storyN')} ${sessionCount}` : chapter.subtitle}
                   </span>
                 </div>
               </>
@@ -586,7 +591,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
             <button
               className="chat-read-btn"
               onClick={() => onOpenReader(null, storyId, personName, freeform)}
-              title="Read your book"
+              title={t('chat.readYourBook')}
             >
               {'\uD83D\uDCD6'}
             </button>
@@ -640,7 +645,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
                   if (!showTextInput) setTimeout(() => textInputRef.current?.focus(), 50)
                 }}
                 disabled={isBusy}
-                title={showTextInput ? 'Close text input' : 'Type instead'}
+                title={showTextInput ? t('chat.closeTextInput') : t('chat.typeInstead')}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
@@ -656,7 +661,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
                 onSetMuted(next)
                 if (next && audioRef.current) { audioRef.current.pause(); audioRef.current = null }
               }}
-              title={muted ? 'Unmute voice' : 'Mute voice'}
+              title={muted ? t('chat.unmuteVoice') : t('chat.muteVoice')}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -679,7 +684,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
                 <textarea
                   ref={textInputRef}
                   className="story-text-input"
-                  placeholder="Type your story..."
+                  placeholder={t('chat.typeYourStory')}
                   value={textInputValue}
                   onChange={(e) => setTextInputValue(e.target.value)}
                   onKeyDown={(e) => {

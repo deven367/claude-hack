@@ -10,6 +10,27 @@ logger = logging.getLogger(__name__)
 
 MODEL_ID = "claude-opus-4.6"
 
+# Map of language codes to their full names for system prompts
+LANGUAGE_NAMES = {
+    "en": "English", "es": "Spanish", "fr": "French", "de": "German",
+    "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "pl": "Polish",
+    "sv": "Swedish", "da": "Danish", "fi": "Finnish", "no": "Norwegian",
+    "ro": "Romanian", "el": "Greek", "cs": "Czech", "sk": "Slovak",
+    "bg": "Bulgarian", "hr": "Croatian", "hu": "Hungarian", "uk": "Ukrainian",
+    "ru": "Russian", "tr": "Turkish", "ar": "Arabic", "hi": "Hindi",
+    "ta": "Tamil", "zh": "Chinese", "ja": "Japanese", "ko": "Korean",
+    "id": "Indonesian", "ms": "Malay", "fil": "Filipino", "vi": "Vietnamese",
+    "th": "Thai",
+}
+
+
+def _language_instruction(language: str) -> str:
+    """Return a system prompt instruction for responding in the given language."""
+    if not language or language == "en":
+        return ""
+    lang_name = LANGUAGE_NAMES.get(language, language)
+    return f"\n\nIMPORTANT: You MUST respond in {lang_name}. The user's interface is set to {lang_name}, so all your messages — questions, follow-ups, everything — must be written in {lang_name}. Do NOT respond in English."
+
 # Chapter data mirrored from frontend — questions the AI should cover per chapter.
 CHAPTERS = [
     {
@@ -142,7 +163,7 @@ CHAPTERS = [
 ]
 
 
-def _build_freeform_system_prompt(person_name: str, extracted_answers: dict) -> str:
+def _build_freeform_system_prompt(person_name: str, extracted_answers: dict, language: str = "en") -> str:
     bonus_stories = {k: v for k, v in extracted_answers.items() if k.startswith("_")}
 
     prompt = f"""You are having a conversation with {person_name}. They want to tell a story — it could be about anything. Your job is to listen and help them tell it well.
@@ -162,6 +183,7 @@ How to talk:
         for key, value in bonus_stories.items():
             prompt += f"- {value[:200]}\n"
 
+    prompt += _language_instruction(language)
     return prompt
 
 
@@ -180,9 +202,10 @@ def _build_system_prompt(
     person_name: str,
     extracted_answers: dict,
     prior_context: list[str] | None = None,
+    language: str = "en",
 ) -> str:
     if chapter_index == -1:
-        return _build_freeform_system_prompt(person_name, extracted_answers)
+        return _build_freeform_system_prompt(person_name, extracted_answers, language=language)
 
     chapter = CHAPTERS[chapter_index]
     questions = chapter["questions"]
@@ -238,6 +261,7 @@ Background topics for this chapter (use ONLY during natural lulls, never interru
     if not unanswered:
         prompt += f"\n\nYou've touched on the main topics for this chapter, but {person_name} may have more to say. Stay open. If the conversation winds down naturally, you can mention they could move to the next chapter or start a new story whenever they're ready."
 
+    prompt += _language_instruction(language)
     return prompt
 
 
@@ -293,6 +317,7 @@ def get_opening_message(
     person_name: str,
     prior_context: list[str] | None = None,
     custom_chapter_title: str | None = None,
+    language: str = "en",
 ) -> str:
     """Generate the AI's opening message for a new chapter conversation."""
     model = llm.get_model(MODEL_ID)
@@ -310,6 +335,7 @@ Write ONE short sentence welcoming them back. Don't summarize. Keep it simple.""
             system = f"""You're having a conversation with {person_name}. They want to tell a story about "{title}".
 
 Write ONE short, inviting sentence to get started. Something like "So, tell me about it." or "What comes to mind?" Keep it simple and direct. Don't ask a specific question — let them lead."""
+        system += _language_instruction(language)
         response = model.prompt("Begin the conversation.", system=system)
         return response.text().strip()
 
@@ -329,6 +355,7 @@ This chapter is specifically about: {questions_summary}. Stay on THIS chapter's 
 
 Write ONE short, simple sentence to get started. Something plain and direct that fits this specific chapter topic. Not dramatic, not poetic, not a paragraph. One sentence, no more."""
 
+    system += _language_instruction(language)
     response = model.prompt("Begin the conversation.", system=system)
     return response.text().strip()
 
@@ -340,6 +367,7 @@ def chat(
     user_message: str,
     prior_context: list[str] | None = None,
     custom_chapter_title: str | None = None,
+    language: str = "en",
 ) -> tuple[str, list[dict]]:
     """Send a message and get AI response. Returns (ai_response, updated_messages)."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -350,7 +378,7 @@ def chat(
     # For custom chapters, use freeform prompt
     effective_index = -1 if custom_chapter_title is not None else chapter_index
     existing_answers = extract_answers(effective_index, messages)
-    system = _build_system_prompt(effective_index, person_name, existing_answers, prior_context)
+    system = _build_system_prompt(effective_index, person_name, existing_answers, prior_context, language=language)
     model = llm.get_model(MODEL_ID)
 
     # Build the LLM conversation
@@ -375,7 +403,7 @@ def chat(
 
     # Polish the user's message for the book
     user_msg = messages[-1]  # the user message we just appended
-    polished = polish_message(user_msg["content"])
+    polished = polish_message(user_msg["content"], language=language)
     if polished != user_msg["content"]:
         user_msg["polished"] = polished
 
@@ -415,10 +443,12 @@ def extract_answers(chapter_index: int, messages: list[dict]) -> dict:
     return {}
 
 
-def polish_message(text: str) -> str:
+def polish_message(text: str, language: str = "en") -> str:
     """Clean up a spoken/transcribed message for readability. Preserves meaning and voice."""
     model = llm.get_model(MODEL_ID)
-    system = """Lightly clean up this transcribed speech for a life story book. Fix grammar, remove filler words (um, uh, like, you know), and improve sentence structure. Keep the person's voice and personality — don't make it formal or literary. Keep it in first person. If it's already clean, return it unchanged. Return ONLY the cleaned text, nothing else."""
+    lang_name = LANGUAGE_NAMES.get(language, "English") if language and language != "en" else ""
+    lang_note = f" The text is in {lang_name} — keep it in {lang_name}." if lang_name else ""
+    system = f"""Lightly clean up this transcribed speech for a life story book. Fix grammar, remove filler words (um, uh, like, you know), and improve sentence structure. Keep the person's voice and personality — don't make it formal or literary. Keep it in first person. If it's already clean, return it unchanged. Return ONLY the cleaned text, nothing else.{lang_note}"""
     try:
         response = model.prompt(text, system=system)
         polished = response.text().strip()

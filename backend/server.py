@@ -206,6 +206,7 @@ def chat():
     person_name = data.get("person_name", "Friend")
     custom_chapter_title = data.get("custom_chapter_title")  # set for freeform stories
     custom_chapter_id = data.get("custom_chapter_id")  # PK of custom_chapters row, if applicable
+    language = data.get("language", "en")  # UI language for multilingual support
 
     if story_id is None or chapter_index is None:
         return jsonify({"error": "story_id and chapter_index required"}), 400
@@ -251,7 +252,7 @@ def chat():
 
     # If no messages yet, generate opening message from AI
     if not messages and not message:
-        opening = conversation.get_opening_message(chapter_index, person_name, prior_context=prior_stories, custom_chapter_title=effective_custom_title)
+        opening = conversation.get_opening_message(chapter_index, person_name, prior_context=prior_stories, custom_chapter_title=effective_custom_title, language=language)
         messages = [{"role": "assistant", "content": opening, "timestamp": ""}]
         if conv_id:
             db.update_conversation(conv_id, messages, extracted)
@@ -270,7 +271,7 @@ def chat():
 
     # Get AI response
     ai_response, updated_messages = conversation.chat(
-        person_name, chapter_index, messages, message, prior_context=prior_stories, custom_chapter_title=effective_custom_title,
+        person_name, chapter_index, messages, message, prior_context=prior_stories, custom_chapter_title=effective_custom_title, language=language,
     )
 
     # Extract answers from the updated conversation
@@ -302,6 +303,7 @@ def new_conversation_session(story_id, chapter_index):
     person_name = data.get("person_name", "Friend")
     custom_chapter_title = data.get("custom_chapter_title")
     custom_chapter_id = data.get("custom_chapter_id")
+    language = data.get("language", "en")
 
     # Gather context from all existing sessions in this chapter
     prior_stories = []
@@ -317,7 +319,7 @@ def new_conversation_session(story_id, chapter_index):
         if chapter_info:
             effective_custom_title = chapter_info.get("title")
 
-    opening = conversation.get_opening_message(chapter_index, person_name, prior_context=prior_stories, custom_chapter_title=effective_custom_title)
+    opening = conversation.get_opening_message(chapter_index, person_name, prior_context=prior_stories, custom_chapter_title=effective_custom_title, language=language)
     messages = [{"role": "assistant", "content": opening, "timestamp": ""}]
     conv_id = db.create_conversation(story_id, chapter_index, messages, {}, custom_chapter_id=custom_chapter_id)
 

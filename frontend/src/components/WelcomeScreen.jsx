@@ -1,13 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
 import { BOOK_COLORS } from '../data/chapters'
+import { getLanguageInfo } from '../data/translations'
 import { getAllLocalStories, ensureShelves, removeFromStoryList } from '../utils/storage'
 import { api } from '../utils/api'
+import { useLanguage } from '../contexts/LanguageContext'
 
-function BookItem({ story, colorIndex, onRead, onWrite, onDelete }) {
+function BookItem({ story, colorIndex, onRead, onWrite, onDelete, t }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const c = BOOK_COLORS[colorIndex % BOOK_COLORS.length]
   const isFreeform = story.type === 'freeform'
+  const langInfo = story.language ? getLanguageInfo(story.language) : null
 
   return (
     <div className="library-book-item">
@@ -24,16 +27,19 @@ function BookItem({ story, colorIndex, onRead, onWrite, onDelete }) {
           {story.storyTitle
             ? story.storyTitle
             : isFreeform
-              ? <>{story.personName}{'\u2019'}s<br />Story</>
-              : <>{story.personName}{'\u2019'}s<br />Life Storybook</>}
+              ? <>{story.personName}{t('welcome.story')}</>
+              : <>{story.personName}{t('welcome.lifeStorybook')}</>}
         </span>
         <div className="library-book-divider" style={{ background: c.text }} />
         <span className="library-book-ornament" style={{ color: c.text }}>{'\u00B7 \u00B7 \u00B7'}</span>
+        {langInfo && langInfo.code !== 'en' && (
+          <span className="library-book-lang" style={{ color: c.text }}>{langInfo.flag}</span>
+        )}
       </div>
       <div className="library-book-actions">
         {confirmDelete ? (
           <div className="library-confirm-delete">
-            <span>Delete?</span>
+            <span>{t('common.delete')}</span>
             <button
               className="library-confirm-yes"
               disabled={deleting}
@@ -48,7 +54,7 @@ function BookItem({ story, colorIndex, onRead, onWrite, onDelete }) {
                 }
               }}
             >
-              {deleting ? '\u23F3' : 'Yes'}
+              {deleting ? '\u23F3' : t('common.yes')}
             </button>
             <button
               className="library-confirm-no"
@@ -58,7 +64,7 @@ function BookItem({ story, colorIndex, onRead, onWrite, onDelete }) {
                 setConfirmDelete(false)
               }}
             >
-              No
+              {t('common.no')}
             </button>
           </div>
         ) : (
@@ -74,14 +80,14 @@ function BookItem({ story, colorIndex, onRead, onWrite, onDelete }) {
   )
 }
 
-function PersonShelf({ personName, books, allStories, onRead, onWrite, onDelete }) {
+function PersonShelf({ personName, books, allStories, onRead, onWrite, onDelete, t }) {
   if (books.length === 0) return null
 
   return (
     <div className="shelf-section">
       <div className="shelf-header">
         <div className="shelf-nameplate">
-          <span className="shelf-nameplate-text">{personName}{'\u2019'}s Shelf</span>
+          <span className="shelf-nameplate-text">{personName}{t('welcome.shelf')}</span>
         </div>
       </div>
       <div className="library-shelf">
@@ -93,6 +99,7 @@ function PersonShelf({ personName, books, allStories, onRead, onWrite, onDelete 
             onRead={onRead}
             onWrite={onWrite}
             onDelete={onDelete}
+            t={t}
           />
         ))}
       </div>
@@ -101,7 +108,7 @@ function PersonShelf({ personName, books, allStories, onRead, onWrite, onDelete 
   )
 }
 
-function NewBookCard({ color, title, subtitle, onStart, active, onActivate, onDeactivate }) {
+function NewBookCard({ color, title, subtitle, onStart, active, onActivate, onDeactivate, placeholder }) {
   const [name, setName] = useState('')
   const inputRef = useRef(null)
   const cardRef = useRef(null)
@@ -153,7 +160,7 @@ function NewBookCard({ color, title, subtitle, onStart, active, onActivate, onDe
             ref={inputRef}
             type="text"
             className="new-book-name-input"
-            placeholder="Your first name..."
+            placeholder={placeholder}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -177,6 +184,7 @@ function NewBookCard({ color, title, subtitle, onStart, active, onActivate, onDe
 export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContinue, onOpenReader }) {
   const [activeBook, setActiveBook] = useState(null)
   const [, forceUpdate] = useState(0)
+  const { t } = useLanguage()
   const stories = getAllLocalStories()
   ensureShelves()
 
@@ -206,39 +214,49 @@ export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContin
     onContinue(story.personId, story.storyId)
   }
 
+  // Split the welcome subtitle on \n for line breaks
+  const subtitleParts = t('welcome.subtitle').split('\n')
+
   return (
     <div id="welcome-screen" className="screen active">
       <div className="welcome-ornament">{'\u2727 \u00B7 \u2727 \u00B7 \u2727'}</div>
-      <h1 className="welcome-title">Share Your Story</h1>
+      <h1 className="welcome-title">{t('welcome.title')}</h1>
       <p className="welcome-subtitle">
-        Everyone has a story worth preserving.<br />
-        Let{'\u2019'}s capture yours, one memory at a time.
+        {subtitleParts.map((part, i) => (
+          <span key={i}>{part}{i < subtitleParts.length - 1 && <br />}</span>
+        ))}
       </p>
 
       <div className="welcome-books">
         <NewBookCard
           color={BOOK_COLORS[0]}
-          title={<>New Life<br />Storybook</>}
-          subtitle="Guided chapters"
+          title={t('welcome.newLifeStorybook').split('\n').map((line, i, arr) => (
+            <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
+          ))}
+          subtitle={t('welcome.guidedChapters')}
           active={activeBook === 'guided'}
           onActivate={() => setActiveBook('guided')}
           onDeactivate={() => setActiveBook(null)}
           onStart={(name) => onStartGuided(name)}
+          placeholder={t('welcome.firstName')}
         />
         <NewBookCard
           color={BOOK_COLORS[1]}
-          title={<>New<br />Story</>}
-          subtitle="Tell it your way"
+          title={t('welcome.newStory').split('\n').map((line, i, arr) => (
+            <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
+          ))}
+          subtitle={t('welcome.tellItYourWay')}
           active={activeBook === 'freeform'}
           onActivate={() => setActiveBook('freeform')}
           onDeactivate={() => setActiveBook(null)}
           onStart={(name) => onStartFreeform(name)}
+          placeholder={t('welcome.firstName')}
         />
       </div>
 
       {stories.length > 0 && (
         <div className="library-section">
-          <h2 className="library-heading">Your Family{'\u2019'}s Library</h2>
+          <h2 className="library-heading">{t('welcome.familyLibrary')}</h2>
           {Object.entries(personGroups).map(([personName, books]) => (
             <PersonShelf
               key={personName}
@@ -248,6 +266,7 @@ export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContin
               onRead={handleRead}
               onWrite={handleWrite}
               onDelete={handleDelete}
+              t={t}
             />
           ))}
         </div>
