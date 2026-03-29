@@ -1,7 +1,10 @@
 """Share Your Story - Flask server with REST API."""
 
+import logging
 import os
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Load .env file from project root (no dependencies needed)
 _env_path = Path(__file__).resolve().parent.parent / ".env"
