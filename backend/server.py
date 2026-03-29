@@ -396,7 +396,7 @@ def text_to_speech():
     if not text:
         return jsonify({"error": "text is required"}), 400
 
-    voice_id = data.get("voice_id")
+    voice_id = data.get("voice_id") if data else None
 
     try:
         audio_bytes = tts.synthesize(text, voice_id=voice_id)
