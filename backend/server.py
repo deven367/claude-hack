@@ -49,29 +49,45 @@ if _env_path.exists():
         os.environ.setdefault(key, value)
 
 
-@app.after_request
-def add_cors_headers(response):
-    origin = request.headers.get("Origin", "")
+def _is_allowed_origin(origin: str) -> bool:
     allowed_origins = [
         "https://deven367.github.io",
         "http://localhost:5173",
         "http://localhost:5050",
     ]
-    if origin.endswith(".vercel.app") and "deven367" in origin:
-        allowed_origins.append(origin)
     if origin in allowed_origins:
+        return True
+    if origin.endswith(".vercel.app") and "deven367" in origin:
+        return True
+    return False
+
+
+@app.before_request
+def handle_preflight():
+    """Handle CORS preflight requests before any route logic."""
+    if request.method == "OPTIONS":
+        response = Response("", status=204)
+        origin = request.headers.get("Origin", "")
+        if _is_allowed_origin(origin):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+            response.headers["Access-Control-Allow-Methods"] = (
+                "GET, POST, PUT, DELETE, OPTIONS"
+            )
+            response.headers["Access-Control-Max-Age"] = "86400"
+        return response
+
+
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get("Origin", "")
+    if _is_allowed_origin(origin):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
         response.headers["Access-Control-Allow-Methods"] = (
             "GET, POST, PUT, DELETE, OPTIONS"
         )
     return response
-
-
-@app.route("/api/<path:path>", methods=["OPTIONS"])
-def handle_preflight(path):
-    """Handle CORS preflight requests for all API routes."""
-    return "", 204
 
 
 @app.route("/")
