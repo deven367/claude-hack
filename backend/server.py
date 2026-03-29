@@ -1,22 +1,15 @@
 """Share Your Story - Flask server with REST API."""
 
+import logging
 import os
 import sys
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 # Ensure the backend directory is on sys.path so 'storyteller' is importable
 # (needed for Vercel where the working directory may not be backend/)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from flask import Flask, jsonify, request, Response
-
-from storyteller import db
-from storyteller import conversation
-from storyteller import tts
-
-app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload limit
-db.init_db()
 
 # Load .env file from project root (no dependencies needed)
 _env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -48,14 +41,17 @@ if _env_path.exists():
             continue
         os.environ.setdefault(key, value)
 
-from flask import Flask, render_template, jsonify, request
-
-from flask import Response
+from flask import Flask, jsonify, request, Response
 
 from storyteller import db
 from storyteller import conversation
 from storyteller import tts
 from storyteller import share as share_module
+
+app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload limit
+db.init_db()
+
 
 def _is_allowed_origin(origin: str) -> bool:
     allowed_origins = [
