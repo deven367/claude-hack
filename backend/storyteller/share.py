@@ -228,20 +228,55 @@ def generate_audiobook(conversations: list[dict], person_name: str, voice_id: st
     return b"".join(audio_parts)
 
 
-def _wrap_text_plain(text: str, chars_per_line: int = 38) -> str:
-    """Wrap text to a plain string with newlines — for writing to a textfile."""
-    words = text.split()
+def _render_overlay(summary: str, person_name: str, title: str | None = None) -> Image.Image:
+    """Render a transparent RGBA overlay with text for compositing onto the video."""
+    img = Image.new("RGBA", (VIDEO_W, VIDEO_H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    padding = 60
+    text_w = VIDEO_W - padding * 2
+    bar_y = 1340
+    bar_h = 540
+
+    # Semi-transparent dark bar at the bottom
+    bar = Image.new("RGBA", (VIDEO_W, bar_h), (0, 0, 0, 160))
+    img.paste(bar, (0, bar_y), bar)
+
+    title_font = _get_font(56)
+    body_font  = _get_font(36)
+    wm_font    = _get_font(28)
+
+    header = title or f"{person_name}\u2019s Story"
+
+    # Title centred
+    draw.text((VIDEO_W // 2, bar_y + 50), header, font=title_font, fill=(255, 255, 255, 255), anchor="mm")
+
+    # Body wrapped
+    words = summary.split()
     lines, current = [], ""
     for word in words:
         test = (current + " " + word).strip()
-        if len(test) > chars_per_line and current:
+        bbox = draw.textbbox((0, 0), test, font=body_font)
+        if bbox[2] > text_w and current:
             lines.append(current)
             current = word
         else:
             current = test
     if current:
         lines.append(current)
-    return "\n".join(lines)
+
+    y = bar_y + 100
+    for line in lines:
+        draw.text((padding, y), line, font=body_font, fill=(240, 240, 240, 230))
+        y += 46
+        if y > bar_y + bar_h - 60:
+            break
+
+    # Watermark
+    draw.text((VIDEO_W - padding, VIDEO_H - 50), "Share Your Story",
+              font=wm_font, fill=(200, 200, 200, 140), anchor="rm")
+
+    return img
 
 
 def generate_reel(
@@ -252,7 +287,7 @@ def generate_reel(
     music_path: Path | None = None,
     bg_video_path: Path | None = None,
 ) -> bytes:
-    """Generate a 9:16 MP4 Reel with background video, subtitle text overlay, and narration audio."""
+    """Generate a 9:16 MP4 Reel with background video, Pillow text overlay, and narration audio."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
 
@@ -273,9 +308,10 @@ def generate_reel(
 
         video_dur = min(audio_dur, MAX_DURATION)
 
-        # Resolve background: use video if available, else fall back to gradient frame
-        bg_video = bg_video_path or (ASSETS_DIR / "background.mp4")
-        use_bg_video = bg_video.exists()
+        # Render text overlay as transparent PNG via Pillow (no drawtext needed)
+        overlay = _render_overlay(summary, person_name, title=title)
+        overlay_path = tmp / "overlay.png"
+        overlay.save(overlay_path)
 
         # Mix narration + optional background music
         music_file = music_path or (ASSETS_DIR / "music.mp3")
@@ -297,54 +333,36 @@ def generate_reel(
         else:
             final_audio = audio_path
 
-        # Write text to files — avoids all ffmpeg escaping issues with apostrophes/commas
-        header = title or f"{person_name}'s Story"
-        header_file = tmp / "header.txt"
-        body_file = tmp / "body.txt"
-        wm_file = tmp / "wm.txt"
-        header_file.write_text(header, encoding="utf-8")
-        body_file.write_text(_wrap_text_plain(summary), encoding="utf-8")
-        wm_file.write_text("Share Your Story", encoding="utf-8")
-
-        # drawbox: semi-transparent bar across bottom third, then three drawtext layers
-        hf = str(header_file)
-        bf = str(body_file)
-        wf = str(wm_file)
-        text_filter = (
-            f"scale={VIDEO_W}:{VIDEO_H}:force_original_aspect_ratio=increase,"
-            f"crop={VIDEO_W}:{VIDEO_H},"
-            f"drawbox=x=0:y=1350:w={VIDEO_W}:h=520:color=black@0.55:t=fill,"
-            f"drawtext=textfile='{hf}'"
-            f":fontcolor=white:fontsize=52:x=(w-text_w)/2:y=1385"
-            f":shadowcolor=black@0.6:shadowx=2:shadowy=2,"
-            f"drawtext=textfile='{bf}'"
-            f":fontcolor=white@0.92:fontsize=34:x=60:y=1455"
-            f":line_spacing=10:shadowcolor=black@0.5:shadowx=1:shadowy=1,"
-            f"drawtext=textfile='{wf}'"
-            f":fontcolor=white@0.55:fontsize=26:x=(w-text_w)/2:y=1845"
-        )
-
         output_path = tmp / "reel.mp4"
+        bg_video = bg_video_path or (ASSETS_DIR / "background.mp4")
 
-        if use_bg_video:
+        if bg_video.exists():
+            # Scale/crop bg video to 9:16, overlay the PNG, mix in audio
             subprocess.run([
                 "ffmpeg", "-y",
-                "-stream_loop", "-1", "-i", str(bg_video),   # loop bg video
+                "-stream_loop", "-1", "-i", str(bg_video),
+                "-i", str(overlay_path),
                 "-i", str(final_audio),
+                "-filter_complex",
+                f"[0:v]scale={VIDEO_W}:{VIDEO_H}:force_original_aspect_ratio=increase,"
+                f"crop={VIDEO_W}:{VIDEO_H}[bg];"
+                f"[bg][1:v]overlay=0:0[v]",
+                "-map", "[v]",
+                "-map", "2:a",
                 "-c:v", "libx264",
                 "-c:a", "aac",
                 "-b:a", "192k",
                 "-pix_fmt", "yuv420p",
                 "-t", str(video_dur),
-                "-vf", text_filter,
                 "-shortest",
                 str(output_path),
             ], check=True, capture_output=True)
         else:
-            # Fallback: gradient still frame
-            frame = _render_text_frame(summary, person_name, title=title)
+            # Fallback: gradient still frame + overlay
+            frame = _build_gradient(VIDEO_W, VIDEO_H).convert("RGBA")
+            frame.alpha_composite(overlay)
             frame_path = tmp / "frame.png"
-            frame.save(frame_path)
+            frame.convert("RGB").save(frame_path)
             subprocess.run([
                 "ffmpeg", "-y",
                 "-loop", "1", "-i", str(frame_path),
