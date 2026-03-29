@@ -12,6 +12,7 @@ export default function App() {
   const [chatProps, setChatProps] = useState(null)
   const [readerProps, setReaderProps] = useState(null)
   const [composeProps, setComposeProps] = useState(null)
+  const [muted, setMuted] = useState(false)
 
   const goHome = useCallback(() => {
     setScreen('welcome')
@@ -64,7 +65,6 @@ export default function App() {
 
   return (
     <>
-      <Particles />
 
       {screen === 'welcome' && (
         <WelcomeScreen
@@ -79,6 +79,8 @@ export default function App() {
       {screen === 'chat' && chatProps && (
         <ChatScreen
           {...chatProps}
+          muted={muted}
+          onSetMuted={setMuted}
           onGoHome={goHome}
           onOpenReader={handleOpenReader}
         />

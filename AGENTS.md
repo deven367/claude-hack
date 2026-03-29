@@ -48,9 +48,38 @@ A simple, warm interface for capturing life stories through conversational AI in
 - ReaderScreen updated to render conversation-extracted answers
 - PRs: #17 (backend), #18 (frontend), #19 (reader + AGENTS.md)
 
+### Session 5 — Full overhaul (Billy, 2026-03-29)
+
+**Core UX:**
+- Switched model from Sonnet 4.6 to **Opus 4.6**
+- Rewrote all system prompts: no forced cheerfulness, questions are loose guides, model stays in user's story
+- Merged "In the Beginning" and "Growing Up" into single "Childhood" chapter
+- Welcome screen: book-shaped cards for "New Life Storybook" / "New Story", per-person library shelves, delete books
+- Navigation: reader returns to chat (not home), removed particles background
+- `.env` file loading for API keys (template at `.env_template`)
+- Multi-session chapters: users can start multiple story sessions per chapter
+- Freeform stories use conversational chat (same as guided)
+
+**Voice-first experience:**
+- ElevenLabs integration (`tts.py`): STT via Scribe API, TTS via text-to-speech API — zero external deps, uses urllib
+- Single-question parchment UI: one question displayed at a time, quill writing animation between questions
+- Large mic button with SVG icon, breathing pulse, recording ring animation
+- Quill toggle for text input fallback
+- Mute button (persists across navigation)
+- Auto-play TTS on new AI responses, auto-send after voice transcription
+
+**Reader & story management:**
+- Transcript-based book rendering (conversation as dialogue, not Q&A)
+- Polished text: user messages auto-cleaned for grammar, with Original/Polished toggle in reader
+- Table of contents with chapter and per-story sub-entries, click to jump
+- Session dividers in book content ("✧ Story 1 ✧")
+- Custom chapters for freeform stories: create, rename (double-click), delete
+- Story sessions: rename (double-click), delete with confirmation
+- Non-first stories in guided chapters get open-ended prompts (not guided questions)
+- PRs: #25
+
 ## Backlog
 
-- Wire up voice-to-text for spoken conversation input
 - Optimize extraction (runs on every message — could batch or run async)
 - Story export for social media
 - Richer visualization (timeline, tag clouds)
