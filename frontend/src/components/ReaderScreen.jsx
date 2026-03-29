@@ -180,15 +180,25 @@ export default function ReaderScreen({ personId, storyId, personName, isFreeform
 
       // Load all conversations grouped by chapter
       const conversations = await api('GET', `/api/conversations/${storyId}`)
+      if (cancelled) return
       const chapterData = {}
 
       if (conversations && conversations.length > 0) {
-        for (const conv of conversations) {
-          const chapterConvs = await api('GET', `/api/conversations/${storyId}/${conv.chapter_index}`)
+        const chapterPromises = conversations.map(conv =>
+          api('GET', `/api/conversations/${storyId}/${conv.chapter_index}`).then(chapterConvs => ({
+            chapterIndex: conv.chapter_index,
+            chapterConvs,
+          }))
+        )
+
+        const chapterResults = await Promise.all(chapterPromises)
+        if (cancelled) return
+
+        chapterResults.forEach(({ chapterIndex, chapterConvs }) => {
           if (chapterConvs.sessions && chapterConvs.sessions.length > 0) {
-            chapterData[conv.chapter_index] = chapterConvs.sessions
+            chapterData[chapterIndex] = chapterConvs.sessions
           }
-        }
+        })
       }
 
       // Handle freeform stories (chapter_index = -1)
