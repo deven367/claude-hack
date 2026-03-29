@@ -32,8 +32,32 @@ function BookItem({ story, colorIndex, onRead, onWrite, onDelete }) {
         {confirmDelete ? (
           <div className="library-confirm-delete">
             <span>Delete?</span>
-            <button className="library-confirm-yes" onClick={async () => { setDeleting(true); await onDelete(story) }}>{deleting ? '\u23F3' : 'Yes'}</button>
-            <button className="library-confirm-no" onClick={() => setConfirmDelete(false)}>No</button>
+            <button
+              className="library-confirm-yes"
+              disabled={deleting}
+              onClick={async () => {
+                if (deleting) return
+                setDeleting(true)
+                try {
+                  await onDelete(story)
+                } finally {
+                  setDeleting(false)
+                  setConfirmDelete(false)
+                }
+              }}
+            >
+              {deleting ? '\u23F3' : 'Yes'}
+            </button>
+            <button
+              className="library-confirm-no"
+              disabled={deleting}
+              onClick={() => {
+                if (deleting) return
+                setConfirmDelete(false)
+              }}
+            >
+              No
+            </button>
           </div>
         ) : (
           <button className="library-action-btn library-action-delete" onClick={() => setConfirmDelete(true)} title="Delete">
