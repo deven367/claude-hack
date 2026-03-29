@@ -14,9 +14,14 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
   const [chapterProgress, setChapterProgress] = useState({})
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  const [recording, setRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
   const chatBodyRef = useRef(null)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
 
   const chapter = freeform ? null : CHAPTERS[currentChapter]
 
@@ -124,6 +129,57 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
       handleSend()
     }
   }
+
+  const toggleRecording = useCallback(async () => {
+    if (recording) {
+      // Stop recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop()
+      }
+      return
+    }
+
+    // Start recording
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+
+      mediaRecorder.onstop = async () => {
+        // Stop all tracks
+        stream.getTracks().forEach(t => t.stop())
+        setRecording(false)
+
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        if (blob.size === 0) return
+
+        setTranscribing(true)
+        try {
+          const form = new FormData()
+          form.append('audio', blob, 'recording.webm')
+          const resp = await fetch('/api/transcribe', { method: 'POST', body: form })
+          const data = await resp.json()
+          if (data.text) {
+            setInputValue(prev => prev ? prev + ' ' + data.text : data.text)
+            inputRef.current?.focus()
+          }
+        } catch (err) {
+          console.error('Transcription failed:', err)
+        }
+        setTranscribing(false)
+      }
+
+      mediaRecorder.start()
+      setRecording(true)
+    } catch (err) {
+      console.error('Mic access denied:', err)
+    }
+  }, [recording])
 
   const switchChapter = (index) => {
     if (index === currentChapter) return
@@ -315,27 +371,35 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
         {/* Input area */}
         <div className="chat-input-area">
           <div className="chat-input-wrapper">
+            <button
+              className={`chat-mic-btn ${recording ? 'recording' : ''} ${transcribing ? 'transcribing' : ''}`}
+              onClick={toggleRecording}
+              disabled={sending || loading || transcribing}
+              title={recording ? 'Stop recording' : 'Record voice'}
+            >
+              {transcribing ? '\u23F3' : recording ? '\u23F9' : '\uD83C\uDF99'}
+            </button>
             <textarea
               ref={inputRef}
               className="chat-input"
-              placeholder="Tell your story..."
+              placeholder={recording ? 'Listening...' : transcribing ? 'Transcribing...' : 'Tell your story...'}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               rows={1}
-              disabled={sending || loading}
+              disabled={sending || loading || recording}
             />
             <button
               className="chat-send-btn"
               onClick={handleSend}
-              disabled={!inputValue.trim() || sending || loading}
+              disabled={!inputValue.trim() || sending || loading || recording}
               style={{ background: accentColor }}
             >
               {'\u2191'}
             </button>
           </div>
           <div className="chat-input-hint">
-            Press Enter to send, Shift+Enter for new line
+            {recording ? 'Recording\u2026 click mic to stop' : 'Press Enter to send, Shift+Enter for new line'}
           </div>
         </div>
       </div>

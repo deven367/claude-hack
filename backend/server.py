@@ -1,9 +1,13 @@
 """Share Your Story - Flask server with REST API."""
 
+import tempfile
+from pathlib import Path
+
 from flask import Flask, render_template, jsonify, request
 
 from storyteller import db
 from storyteller import conversation
+from storyteller import speech
 
 app = Flask(__name__, template_folder="../frontend")
 db.init_db()
@@ -277,6 +281,27 @@ def get_conversation(story_id, chapter_index):
         "status": "in_progress",
         "chapter_info": conversation.get_chapter_info(chapter_index),
     })
+
+
+@app.route("/api/transcribe", methods=["POST"])
+def transcribe():
+    """Transcribe an audio file to text using Whisper."""
+    if "audio" not in request.files:
+        return jsonify({"error": "No audio file provided"}), 400
+
+    audio_file = request.files["audio"]
+
+    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+        audio_file.save(tmp)
+        tmp_path = Path(tmp.name)
+
+    try:
+        text = speech.transcribe_audio_file(tmp_path)
+        return jsonify({"text": text})
+    except speech.TranscriptionError as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

@@ -2312,6 +2312,51 @@ body::after {
   font-style: italic;
 }
 
+/* Mic button */
+.chat-mic-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--white);
+  color: var(--brown-light);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+
+.chat-mic-btn:hover:not(:disabled) {
+  border-color: var(--terracotta);
+  color: var(--terracotta);
+  background: rgba(196, 114, 90, 0.05);
+}
+
+.chat-mic-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.chat-mic-btn.recording {
+  border-color: #C04040;
+  background: rgba(192, 64, 64, 0.08);
+  color: #C04040;
+  animation: mic-pulse 1.5s ease-in-out infinite;
+}
+
+.chat-mic-btn.transcribing {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(192, 64, 64, 0.2); }
+  50% { box-shadow: 0 0 0 8px rgba(192, 64, 64, 0); }
+}
+
 .chat-send-btn {
   width: 36px;
   height: 36px;
