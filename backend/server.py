@@ -333,8 +333,8 @@ def get_conversations(story_id):
 
 @app.route("/api/conversations/<int:story_id>/<chapter_index>", methods=["GET"])
 def get_conversation(story_id, chapter_index):
-    chapter_index = int(chapter_index)
     """Get all conversation sessions for a chapter."""
+    chapter_index = int(chapter_index)
     sessions = db.get_chapter_conversations(story_id, chapter_index)
     if not sessions:
         return jsonify({
