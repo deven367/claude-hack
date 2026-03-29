@@ -1,5 +1,7 @@
 # Share Your Story
 
+![Share Your Story](assets/banner.png)
+
 A conversational storytelling app that helps people capture their life stories by talking naturally with an AI listener. Priceless family stories disappear every day -- not because people don't want to share, but because nobody sits down and asks in the right way.
 
 **Share Your Story** sits with you like a friend at the kitchen table and helps you tell your story -- in your own voice, in your own words.
@@ -128,7 +130,3 @@ assets/
 - **No fake enthusiasm.** The AI is prompted to never say "That's wonderful!" or "What a beautiful memory!" -- people can tell when responses are scripted
 - **Gentle with difficult topics.** If someone brings up loss, regret, or trauma, the AI doesn't probe. It's designed to be respectful and let people share at their own pace
 - **Your data stays yours.** Stories are stored locally on your device. You can delete any story or conversation at any time
-
-## Team
-
-Built during a hackathon. See [PROJECT_DESCRIPTION.md](PROJECT_DESCRIPTION.md) for our design philosophy.
