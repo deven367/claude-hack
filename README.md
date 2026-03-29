@@ -1,5 +1,7 @@
 # Share Your Story
 
+![Share Your Story](assets/banner.png)
+
 A conversational storytelling app that helps people capture their life stories by talking naturally with an AI listener. Priceless family stories disappear every day -- not because people don't want to share, but because nobody sits down and asks in the right way.
 
 **Share Your Story** sits with you like a friend at the kitchen table and helps you tell your story -- in your own voice, in your own words.
