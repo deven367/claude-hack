@@ -2,7 +2,7 @@
 
 ## Project vision
 
-A simple, warm interface for capturing life stories through conversational AI interviews. 11 life chapters, each driven by an LLM conversation that extracts structured answers naturally. Stories are stored locally in SQLite and viewable as a book.
+A simple, warm interface for capturing life stories through conversational AI interviews. 10 life chapters, each driven by an LLM conversation that extracts structured answers naturally. Stories are stored locally in SQLite and viewable as a book.
 
 ## Development instructions
 
