@@ -240,6 +240,7 @@ def delete_story(story_id: int):
     db.execute("DELETE FROM conversations WHERE story_id = ?", [story_id])
     db.execute("DELETE FROM questionnaire_responses WHERE story_id = ?", [story_id])
     db.execute("DELETE FROM story_tags WHERE story_id = ?", [story_id])
+    db.execute("DELETE FROM custom_chapters WHERE story_id = ?", [story_id])
     db.execute("DELETE FROM stories WHERE id = ?", [story_id])
 
 
