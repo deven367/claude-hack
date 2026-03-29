@@ -40,6 +40,7 @@ from flask import Response
 from storyteller import db
 from storyteller import conversation
 from storyteller import tts
+from storyteller import share as share_module
 
 app = Flask(__name__, template_folder="../frontend")
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload limit
@@ -432,6 +433,92 @@ def text_to_speech():
         return Response(audio_bytes, mimetype="audio/mpeg")
     except tts.TTSError as e:
         return jsonify({"error": str(e)}), 500
+
+
+# --- Share / Export endpoints ---
+
+def _collect_conversations(story_id: int) -> list[dict]:
+    """Return all conversations for a story, enriched with chapter title."""
+    convs = db.get_all_conversations(story_id)
+    result = []
+    for conv in convs:
+        chapter_info = conversation.get_chapter_info(conv["chapter_index"])
+        result.append({
+            **conv,
+            "chapter_title": chapter_info.get("title") if chapter_info else None,
+        })
+    return result
+
+
+@app.route("/api/stories/<int:story_id>/share/summary", methods=["GET"])
+def get_share_summary(story_id):
+    """Return AI-generated social summary for a story."""
+    story = db.get_story(story_id)
+    if not story:
+        return jsonify({"error": "Story not found"}), 404
+    convs = _collect_conversations(story_id)
+    if not convs:
+        return jsonify({"error": "No content to summarize"}), 400
+    person_name = story.get("person_name") or "Unknown"
+    summary = share_module.generate_summary(convs, person_name)
+    return jsonify({"summary": summary})
+
+
+@app.route("/api/stories/<int:story_id>/share/audiobook", methods=["POST"])
+def download_audiobook(story_id):
+    """Generate and return a full MP3 audiobook of the story."""
+    story = db.get_story(story_id)
+    if not story:
+        return jsonify({"error": "Story not found"}), 404
+    convs = _collect_conversations(story_id)
+    if not convs:
+        return jsonify({"error": "No content to narrate"}), 400
+
+    person_name = story.get("person_name") or "Unknown"
+    data = request.json or {}
+    voice_id = data.get("voice_id") or None
+
+    try:
+        mp3_bytes = share_module.generate_audiobook(convs, person_name, voice_id=voice_id)
+    except tts.TTSError as e:
+        return jsonify({"error": str(e)}), 500
+
+    safe_name = person_name.replace(" ", "_")
+    return Response(
+        mp3_bytes,
+        mimetype="audio/mpeg",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}_Story.mp3"'},
+    )
+
+
+@app.route("/api/stories/<int:story_id>/share/reel", methods=["POST"])
+def download_reel(story_id):
+    """Generate and return a 9:16 MP4 reel for Instagram/YouTube Shorts."""
+    story = db.get_story(story_id)
+    if not story:
+        return jsonify({"error": "Story not found"}), 404
+    convs = _collect_conversations(story_id)
+    if not convs:
+        return jsonify({"error": "No content to share"}), 400
+
+    person_name = story.get("person_name") or "Unknown"
+    data = request.json or {}
+    voice_id = data.get("voice_id") or None
+    summary = data.get("summary") or share_module.generate_summary(convs, person_name)
+
+    try:
+        audio_bytes = share_module.synthesize_summary(summary, person_name, voice_id=voice_id)
+        video_bytes = share_module.generate_reel(summary, audio_bytes, person_name)
+    except (tts.TTSError, Exception) as e:
+        logger.error("Reel generation failed: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+    safe_name = person_name.replace(" ", "_")
+    return Response(
+        video_bytes,
+        mimetype="video/mp4",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}_Reel.mp4"'},
+    )
 
 
 if __name__ == "__main__":

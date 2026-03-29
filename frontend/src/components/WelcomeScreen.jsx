@@ -2,8 +2,9 @@ import { useState, useRef, useEffect } from 'react'
 import { BOOK_COLORS } from '../data/chapters'
 import { getAllLocalStories, ensureShelves, removeFromStoryList } from '../utils/storage'
 import { api } from '../utils/api'
+import SharePanel from './SharePanel'
 
-function BookItem({ story, colorIndex, onRead, onWrite, onDelete }) {
+function BookItem({ story, colorIndex, onRead, onWrite, onDelete, onShare }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const c = BOOK_COLORS[colorIndex % BOOK_COLORS.length]
@@ -69,12 +70,19 @@ function BookItem({ story, colorIndex, onRead, onWrite, onDelete }) {
         <button className="library-action-btn library-action-write" onClick={() => onWrite(story)} title="Continue writing">
           {'\u270E'}
         </button>
+        <button
+          className="library-action-btn library-action-share"
+          onClick={() => onShare(story)}
+          title="Share story"
+        >
+          {'\u2197'}
+        </button>
       </div>
     </div>
   )
 }
 
-function PersonShelf({ personName, books, allStories, onRead, onWrite, onDelete }) {
+function PersonShelf({ personName, books, allStories, onRead, onWrite, onDelete, onShare }) {
   if (books.length === 0) return null
 
   return (
@@ -93,6 +101,7 @@ function PersonShelf({ personName, books, allStories, onRead, onWrite, onDelete 
             onRead={onRead}
             onWrite={onWrite}
             onDelete={onDelete}
+            onShare={onShare}
           />
         ))}
       </div>
@@ -177,6 +186,7 @@ function NewBookCard({ color, title, subtitle, onStart, active, onActivate, onDe
 export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContinue, onOpenReader }) {
   const [activeBook, setActiveBook] = useState(null)
   const [, forceUpdate] = useState(0)
+  const [shareStory, setShareStory] = useState(null)
   const stories = getAllLocalStories()
   ensureShelves()
 
@@ -204,6 +214,10 @@ export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContin
 
   const handleWrite = (story) => {
     onContinue(story.personId, story.storyId)
+  }
+
+  const handleShare = (story) => {
+    setShareStory(story)
   }
 
   return (
@@ -248,9 +262,14 @@ export default function WelcomeScreen({ onStartGuided, onStartFreeform, onContin
               onRead={handleRead}
               onWrite={handleWrite}
               onDelete={handleDelete}
+              onShare={handleShare}
             />
           ))}
         </div>
+      )}
+
+      {shareStory && (
+        <SharePanel story={shareStory} onClose={() => setShareStory(null)} />
       )}
     </div>
   )
