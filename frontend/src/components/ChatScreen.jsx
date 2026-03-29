@@ -57,11 +57,14 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
   // Load custom chapters for freeform mode
   useEffect(() => {
     if (!freeform) return
+    let cancelled = false
     async function loadCustomChapters() {
       const chapters = await api('GET', `/api/stories/${storyId}/custom-chapters`)
+      if (cancelled) return
       if (chapters.length === 0) {
         // Auto-create first chapter
         const ch = await api('POST', `/api/stories/${storyId}/custom-chapters`, { title: `${t('chat.chapterN')} 1` })
+        if (cancelled) return
         setCustomChapters([ch])
         setCurrentChapter(ch.id)
       } else {
@@ -70,6 +73,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
       }
     }
     loadCustomChapters()
+    return () => { cancelled = true }
   }, [freeform, storyId])
 
   // Load chapter conversation
