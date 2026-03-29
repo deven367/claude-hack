@@ -22,6 +22,7 @@ A simple, warm interface for capturing life stories through conversational AI in
 - **Qwen think mode**: Local Ollama model `qwen3.5:2b` requires `think=False` to avoid enormous reasoning traces.
 - **Node version**: `package-lock.json` must be generated with the same Node version as CI (currently Node 20).
 - **Chapter data duplication**: Questions are defined in both `frontend/src/data/chapters.js` and `backend/storyteller/conversation.py`. Keep them in sync.
+- **Flask port**: Use port 5050 (not 5000). macOS Monterey+ reserves port 5000 for AirPlay Receiver.
 
 ## Build log
 
