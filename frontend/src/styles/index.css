@@ -3068,7 +3068,7 @@ body::after {
 .language-selector {
   position: fixed;
   top: 12px;
-  right: 16px;
+  right: 72px;
   z-index: 1000;
 }
 
@@ -3175,7 +3175,7 @@ body::after {
 @media (max-width: 600px) {
   .language-selector {
     top: 8px;
-    right: 8px;
+    right: 60px;
   }
 
   .language-selector-btn {
