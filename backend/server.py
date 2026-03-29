@@ -6,11 +6,32 @@ from pathlib import Path
 # Load .env file from project root (no dependencies needed)
 _env_path = Path(__file__).resolve().parent.parent / ".env"
 if _env_path.exists():
-    for line in _env_path.read_text().splitlines():
+    try:
+        _env_text = _env_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        _env_text = ""
+    for line in _env_text.splitlines():
         line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            key, _, value = line.partition("=")
-            os.environ.setdefault(key.strip(), value.strip())
+        if not line or line.startswith("#"):
+            continue
+        # Support lines like "export KEY=VALUE"
+        if line.startswith("export "):
+            line = line[len("export "):].lstrip()
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        # Remove inline comments from the value part: KEY=VALUE # comment
+        if "#" in value:
+            value, _ = value.split("#", 1)
+        value = value.strip()
+        # Strip surrounding single or double quotes
+        if (len(value) >= 2) and ((value[0] == value[-1]) and value[0] in ("'", '"')):
+            value = value[1:-1].strip()
+        # Skip setting empty values so existing env vars / fallbacks still work
+        if not key or not value:
+            continue
+        os.environ.setdefault(key, value)
 
 from flask import Flask, render_template, jsonify, request
 
