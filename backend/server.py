@@ -57,7 +57,7 @@ def _is_allowed_origin(origin: str) -> bool:
     ]
     if origin in allowed_origins:
         return True
-    if origin.endswith(".vercel.app") and "deven367" in origin:
+    if origin.endswith(".vercel.app") and ("deven367" in origin or "claude-hack" in origin):
         return True
     return False
 
