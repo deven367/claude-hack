@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { CHAPTERS } from '../data/chapters'
-import { api } from '../utils/api'
+import { api, API_BASE } from '../utils/api'
 import { useLanguage } from '../contexts/LanguageContext'
 
 export default function ChatScreen({ personName, storyId, initialChapter = 0, freeform = false, muted = false, onSetMuted, onGoHome, onOpenReader }) {
@@ -144,7 +144,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
       audioRef.current = null
     }
     try {
-      const resp = await fetch('/api/tts', {
+      const resp = await fetch(`${API_BASE}/api/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -234,7 +234,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
         try {
           const form = new FormData()
           form.append('audio', blob, 'recording.webm')
-          const resp = await fetch('/api/transcribe', { method: 'POST', body: form })
+          const resp = await fetch(`${API_BASE}/api/transcribe`, { method: 'POST', body: form })
           const data = await resp.json()
           if (data.text) {
             setTranscribing(false)

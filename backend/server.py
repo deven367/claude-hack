@@ -46,6 +46,29 @@ app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload limit
 db.init_db()
 
 
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get("Origin", "")
+    allowed_origins = [
+        "https://deven367.github.io",
+        "http://localhost:5173",
+        "http://localhost:5050",
+    ]
+    if origin.endswith(".vercel.app") and "deven367" in origin:
+        allowed_origins.append(origin)
+    if origin in allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    return response
+
+
+@app.route("/api/<path:path>", methods=["OPTIONS"])
+def handle_preflight(path):
+    """Handle CORS preflight requests for all API routes."""
+    return "", 204
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
