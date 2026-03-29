@@ -228,8 +228,8 @@ def generate_audiobook(conversations: list[dict], person_name: str, voice_id: st
     return b"".join(audio_parts)
 
 
-def _wrap_for_drawtext(text: str, chars_per_line: int = 42) -> str:
-    """Wrap text and escape it for ffmpeg drawtext."""
+def _wrap_text_plain(text: str, chars_per_line: int = 38) -> str:
+    """Wrap text to a plain string with newlines — for writing to a textfile."""
     words = text.split()
     lines, current = [], ""
     for word in words:
@@ -241,10 +241,7 @@ def _wrap_for_drawtext(text: str, chars_per_line: int = 42) -> str:
             current = test
     if current:
         lines.append(current)
-    # ffmpeg drawtext escape: single-quote the string, escape ' and \
-    joined = "\n".join(lines)
-    escaped = joined.replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
-    return escaped
+    return "\n".join(lines)
 
 
 def generate_reel(
@@ -300,25 +297,31 @@ def generate_reel(
         else:
             final_audio = audio_path
 
-        # Build drawtext overlay: title + summary
-        header = title or f"{person_name}\u2019s Story"
-        header_escaped = header.replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
-        body_escaped = _wrap_for_drawtext(summary)
+        # Write text to files — avoids all ffmpeg escaping issues with apostrophes/commas
+        header = title or f"{person_name}'s Story"
+        header_file = tmp / "header.txt"
+        body_file = tmp / "body.txt"
+        wm_file = tmp / "wm.txt"
+        header_file.write_text(header, encoding="utf-8")
+        body_file.write_text(_wrap_text_plain(summary), encoding="utf-8")
+        wm_file.write_text("Share Your Story", encoding="utf-8")
 
-        # Semi-transparent dark bar behind text using ffmpeg drawbox + drawtext
-        # drawbox: full-width bar from y=1400 to y=1850 (bottom third)
+        # drawbox: semi-transparent bar across bottom third, then three drawtext layers
+        hf = str(header_file)
+        bf = str(body_file)
+        wf = str(wm_file)
         text_filter = (
             f"scale={VIDEO_W}:{VIDEO_H}:force_original_aspect_ratio=increase,"
             f"crop={VIDEO_W}:{VIDEO_H},"
             f"drawbox=x=0:y=1350:w={VIDEO_W}:h=520:color=black@0.55:t=fill,"
-            f"drawtext=text='{header_escaped}'"
-            f":fontcolor=white:fontsize=52:x=(w-text_w)/2:y=1380"
+            f"drawtext=textfile='{hf}'"
+            f":fontcolor=white:fontsize=52:x=(w-text_w)/2:y=1385"
             f":shadowcolor=black@0.6:shadowx=2:shadowy=2,"
-            f"drawtext=text='{body_escaped}'"
-            f":fontcolor=white@0.92:fontsize=36:x=60:y=1450"
-            f":line_spacing=12:shadowcolor=black@0.5:shadowx=1:shadowy=1,"
-            f"drawtext=text='Share Your Story'"
-            f":fontcolor=white@0.6:fontsize=28:x=(w-text_w)/2:y=1840"
+            f"drawtext=textfile='{bf}'"
+            f":fontcolor=white@0.92:fontsize=34:x=60:y=1455"
+            f":line_spacing=10:shadowcolor=black@0.5:shadowx=1:shadowy=1,"
+            f"drawtext=textfile='{wf}'"
+            f":fontcolor=white@0.55:fontsize=26:x=(w-text_w)/2:y=1845"
         )
 
         output_path = tmp / "reel.mp4"
