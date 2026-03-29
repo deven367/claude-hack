@@ -107,7 +107,7 @@ export default function ChatScreen({ personName, storyId, initialChapter = 0, fr
 
     loadChapter()
     return () => { cancelled = true }
-  }, [storyId, currentChapter, personName])
+  }, [storyId, currentChapter, personName, freeform, currentCustomChapter?.title])
 
   // Auto-play first AI message on load
   useEffect(() => {
