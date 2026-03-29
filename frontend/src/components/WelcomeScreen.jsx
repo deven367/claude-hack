@@ -156,7 +156,7 @@ function NewBookCard({ color, title, subtitle, onStart, active, onActivate, onDe
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSubmit()
-              if (e.key === 'Escape') { setShowInput(false); setName('') }
+              if (e.key === 'Escape') { onDeactivate(); setName('') }
             }}
           />
           <button
